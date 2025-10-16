@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.peluware</groupId>
+    <artifactId>freddy-cruder</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Freddy Cruder</name>
+    <description>
+        Freddy Cruder is a modular and agnostic java library to simplify and automate CRUD operations in your
+        applications.
+    </description>
+    <url>https://github.com/peluware/java-freddy-cruder</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>luidmidev</id>
+            <name>Luis Miguel Vasquez Basurto</name>
+            <email>luidmidev@gmail.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <url>https://github.com/peluware/java-freddy-cruder.git</url>
+        <connection>scm:git:git://github.com/peluware/java-freddy-cruder.git</connection>
+        <developerConnection>scm:git:sshl://github.com/peluwarejava-freddy-cruder.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
+    <modules>
+        <!-- IMPERATIVE -->
+        <module>freddy-cruder-core</module>
+        <module>freddy-cruder-jpa</module>
+
+        <!-- REACTIVE -->
+        <module>freddy-cruder-reactive-core</module>
+        <module>freddy-cruder-reactive-mutiny</module>
+        <module>freddy-cruder-hibernate-reactive</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <encoding.default>UTF-8</encoding.default>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <com.peluware.omnisearch.version>2.0.0</com.peluware.omnisearch.version>
+        <io.smallrye.reactive.mutiny.version>2.9.4</io.smallrye.reactive.mutiny.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.42</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>26.0.2</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-commons</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-jpa</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-reactive-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-reactive-mutiny</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-hibernate-reactive</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>omni-search-core</artifactId>
+                <version>${com.peluware.omnisearch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>omni-search-hibernate-reactive</artifactId>
+                <version>${com.peluware.omnisearch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>omni-search-jpa</artifactId>
+                <version>${com.peluware.omnisearch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>omni-search-mongodb</artifactId>
+                <version>${com.peluware.omnisearch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.smallrye.reactive</groupId>
+                <artifactId>mutiny</artifactId>
+                <version>${io.smallrye.reactive.mutiny.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>domain-commons</artifactId>
+                <version>1.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.validation</groupId>
+                <artifactId>jakarta.validation-api</artifactId>
+                <version>3.1.1</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.42</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.3</version>
+                <configuration>
+                    <additionalJOption>-Xdoclint:none</additionalJOption>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.3</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.6.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
