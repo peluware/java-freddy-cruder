@@ -42,10 +42,10 @@ public interface HibernateWriteProvider<E, D, ID> extends
     @Override
     @Protected
     @Final
-    default Uni<E> internalDelete(E entity) {
+    default Uni<Void> internalDelete(E entity) {
         return getSessionFactory().withSession(session -> session
                 .remove(entity)
-                .replaceWith(entity)
+                .replaceWithVoid()
         );
     }
 

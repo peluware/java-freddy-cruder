@@ -13,6 +13,7 @@ import com.peluware.omnisearch.jpa.JpaOmniSearch;
 import cz.jirutka.rsql.parser.RSQLParser;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface JpaReadProvider<E, ID> extends
         EntityManagerSupplier,
@@ -67,11 +68,8 @@ public interface JpaReadProvider<E, ID> extends
     @Final
     default E internalFind(ID id) throws NotFoundEntityException {
         var entityClass = getEntityClass();
-        var entity = getEntityManager().find(entityClass, id);
-        if (entity == null) {
-            throw new NotFoundEntityException(entityClass, id);
-        }
-        return entity;
+        return Optional.ofNullable(getEntityManager().find(entityClass, id))
+                .orElseThrow(() -> new NotFoundEntityException(entityClass, id));
     }
 
     @Override
@@ -85,7 +83,7 @@ public interface JpaReadProvider<E, ID> extends
         var cq = cb.createQuery(entityClass);
         var root = cq.from(entityClass);
 
-        var idFieldName = JpaUtils.getIdFieldName(entityClass);
+        var idFieldName = InternalUtils.getIdFieldName(entityClass);
 
         cq.where(root.get(idFieldName).in(ids));
 
@@ -137,7 +135,7 @@ public interface JpaReadProvider<E, ID> extends
         var cq = cb.createQuery(Long.class);
         var root = cq.from(entityClass);
 
-        var idFieldName = JpaUtils.getIdFieldName(entityClass);
+        var idFieldName = InternalUtils.getIdFieldName(entityClass);
 
         cq.select(cb.count(root))
                 .where(cb.equal(root.get(idFieldName), id));

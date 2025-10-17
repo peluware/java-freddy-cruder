@@ -43,9 +43,9 @@ public interface WriteProviderSupport<E, D, ID> extends
 
             mapEntity(dto, entity, true);
             events.onBeforeCreate(dto, entity);
-            internalCreate(entity);
-            events.onAfterCreate(dto, entity);
-            events.eachEntity(entity);
+            var created = internalCreate(entity);
+            events.onAfterCreate(dto, created);
+            events.eachEntity(created);
 
             postProcess(CrudOperation.CREATE);
             return entity;
@@ -73,8 +73,8 @@ public interface WriteProviderSupport<E, D, ID> extends
 
             mapEntity(dto, entity, false);
             events.onBeforeUpdate(dto, entity);
-            internalUpdate(entity);
-            events.onAfterUpdate(dto, entity);
+            var updated = internalUpdate(entity);
+            events.onAfterUpdate(dto, updated);
             events.eachEntity(entity);
 
             postProcess(CrudOperation.UPDATE);
@@ -129,10 +129,10 @@ public interface WriteProviderSupport<E, D, ID> extends
     E internalFind(ID id) throws NotFoundEntityException;
 
     @Protected
-    void internalCreate(E entity);
+    E internalCreate(E entity);
 
     @Protected
-    void internalUpdate(E entity);
+    E internalUpdate(E entity);
 
     @Protected
     void internalDelete(E entity);

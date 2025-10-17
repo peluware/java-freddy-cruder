@@ -5,6 +5,8 @@ import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
 import com.peluware.freddy.cruder.annotations.Protected;
 import com.peluware.freddy.cruder.WriteProviderSupport;
 
+import java.util.Optional;
+
 public interface JpaWriteProvider<E, D, ID> extends
         EntityManagerSupplier,
         WriteProviderSupport<E, D, ID> {
@@ -15,27 +17,25 @@ public interface JpaWriteProvider<E, D, ID> extends
     default E internalFind(ID id) throws NotFoundEntityException {
         var em = getEntityManager();
         var entityClass = getEntityClass();
-        E entity = em.find(entityClass, id);
-        if (entity == null) {
-            throw new NotFoundEntityException(entityClass, id);
-        }
+        return Optional.ofNullable(em.find(entityClass, id))
+                .orElseThrow(() -> new NotFoundEntityException(entityClass, id));
+    }
+
+    @Override
+    @Protected
+    @Final
+    default E internalCreate(E entity) {
+        var em = getEntityManager();
+        em.persist(entity);
         return entity;
     }
 
     @Override
     @Protected
     @Final
-    default void internalCreate(E entity) {
+    default E internalUpdate(E entity) {
         var em = getEntityManager();
-        em.persist(entity);
-    }
-
-    @Override
-    @Protected
-    @Final
-    default void internalUpdate(E entity) {
-        var em = getEntityManager();
-        em.merge(entity);
+        return em.merge(entity);
     }
 
     @Override

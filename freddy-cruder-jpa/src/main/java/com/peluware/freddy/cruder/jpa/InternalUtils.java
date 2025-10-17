@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @UtilityClass
-public class JpaUtils {
+class InternalUtils {
 
     private static final Map<Class<?>, String> ID_FIELD_CACHE = new ConcurrentHashMap<>();
 

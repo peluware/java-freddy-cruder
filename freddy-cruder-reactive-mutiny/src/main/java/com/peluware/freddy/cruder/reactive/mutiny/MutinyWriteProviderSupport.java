@@ -34,9 +34,9 @@ public interface MutinyWriteProviderSupport<E, D, ID> extends
                     return mapEntity(dto, entity, true) // Uni<Void>
                             .onItem().call(vv -> events.onBeforeCreate(dto, entity))
                             .onItem().transformToUni(vv -> internalCreate(entity))
-                            .onItem().call(e -> events.onAfterCreate(dto, entity))
+                            .onItem().call(created -> events.onAfterCreate(dto, created))
                             .onItem().invoke(events::eachEntity)
-                            .onItem().call(e -> postProcess(CrudOperation.CREATE));
+                            .onItem().call(created -> postProcess(CrudOperation.CREATE));
                 }));
     }
 
@@ -49,9 +49,9 @@ public interface MutinyWriteProviderSupport<E, D, ID> extends
                                 .onItem().call(entity -> mapEntity(dto, entity, false))
                                 .onItem().call(entity -> events.onBeforeUpdate(dto, entity))
                                 .onItem().transformToUni(this::internalUpdate)
-                                .onItem().call(entity -> events.onAfterUpdate(dto, entity))
+                                .onItem().call(updated -> events.onAfterUpdate(dto, updated))
                                 .onItem().invoke(events::eachEntity)
-                                .onItem().call(entity -> postProcess(CrudOperation.UPDATE))
+                                .onItem().call(updated -> postProcess(CrudOperation.UPDATE))
                 ));
     }
 
@@ -62,7 +62,7 @@ public interface MutinyWriteProviderSupport<E, D, ID> extends
                 .onItem().transformToUni(v -> withTransaction(() ->
                         internalFind(id)
                                 .onItem().call(events::onBeforeDelete)
-                                .onItem().transformToUni(this::internalDelete)
+                                .onItem().call(this::internalDelete)
                                 .onItem().call(events::onAfterDelete)
                                 .onItem().invoke(events::eachEntity)
                                 .onItem().call(entity -> postProcess(CrudOperation.DELETE))
@@ -94,7 +94,7 @@ public interface MutinyWriteProviderSupport<E, D, ID> extends
     Uni<E> internalUpdate(E entity);
 
     @Protected
-    Uni<E> internalDelete(E entity);
+    Uni<Void> internalDelete(E entity);
 
     /**
      * Creates a new instance of the entity.

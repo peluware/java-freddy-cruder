@@ -6,6 +6,7 @@ import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityClassSupplier;
 import com.peluware.freddy.cruder.annotations.Final;
 import com.peluware.freddy.cruder.annotations.Protected;
+import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
 import com.peluware.freddy.cruder.reactive.mutiny.MutinyReadProviderSupport;
 import com.peluware.omnisearch.OmniSearchOptions;
 import com.peluware.omnisearch.hibernate.reactive.HibernateOmniSearch;
@@ -66,7 +67,9 @@ interface HibernateReadProvider<E, ID> extends
     @Protected
     @Final
     default Uni<E> internalFind(ID id) {
-        return getSessionFactory().withSession(session -> session.find(getEntityClass(), id));
+        var entitiesClass = getEntityClass();
+        return getSessionFactory().withSession(session -> session.find(entitiesClass, id))
+                .onItem().ifNull().failWith(() -> new NotFoundEntityException(entitiesClass, id));
     }
 
     @Override
@@ -80,7 +83,7 @@ interface HibernateReadProvider<E, ID> extends
             var cq = cb.createQuery(entityClass);
             var root = cq.from(entityClass);
 
-            var idFieldName = JpaUtils.getIdFieldName(entityClass);
+            var idFieldName = InternalUtils.getIdFieldName(entityClass);
 
             cq.where(root.get(idFieldName).in(ids));
 
@@ -137,7 +140,7 @@ interface HibernateReadProvider<E, ID> extends
             var cq = cb.createQuery(Long.class);
             var root = cq.from(entityClass);
 
-            var idFieldName = JpaUtils.getIdFieldName(entityClass);
+            var idFieldName = InternalUtils.getIdFieldName(entityClass);
 
             cq.select(cb.count(root));
             cq.where(cb.equal(root.get(idFieldName), id));

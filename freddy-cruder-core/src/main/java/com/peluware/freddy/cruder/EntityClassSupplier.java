@@ -1,5 +1,6 @@
 package com.peluware.freddy.cruder;
 
+
 /**
  * Provides the entity class type.
  *
