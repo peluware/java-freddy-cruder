@@ -1,8 +1,6 @@
 package com.peluware.freddy.cruder.hibernate.reactive;
 
 import cz.jirutka.rsql.parser.RSQLParser;
-import cz.jirutka.rsql.parser.ast.AndNode;
-import cz.jirutka.rsql.parser.ast.Node;
 import jakarta.persistence.Id;
 import lombok.experimental.UtilityClass;
 
@@ -12,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @UtilityClass
 class InternalUtils {
 
+    public static final RSQLParser DEFAULT_RSQL_PARSER = new RSQLParser();
     private static final Map<Class<?>, String> ID_FIELD_CACHE = new ConcurrentHashMap<>();
 
     static String getIdFieldName(Class<?> entityClass) {

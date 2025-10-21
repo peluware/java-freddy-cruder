@@ -5,10 +5,7 @@ import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
 import io.smallrye.mutiny.Uni;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-
-import java.util.List;
 
 /**
  * Mutiny contract for read-only operations on entities.
@@ -36,14 +33,6 @@ public interface MutinyReadProvider<E, ID> {
      * @return a {@link Uni} emitting the found entity or failing with {@link NotFoundEntityException} if not found
      */
     Uni<E> find(@NotNull ID id);
-
-    /**
-     * Finds multiple entities by their identifiers.
-     *
-     * @param ids list of identifiers
-     * @return a {@link Uni} emitting the found entities
-     */
-    Uni<List<E>> find(@NotNull @NotEmpty List<ID> ids);
 
     /**
      * Counts the number of entities matching the given search and query criteria.

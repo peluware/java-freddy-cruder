@@ -13,15 +13,12 @@ import com.peluware.omnisearch.hibernate.reactive.HibernateOmniSearch;
 import cz.jirutka.rsql.parser.RSQLParser;
 import io.smallrye.mutiny.Uni;
 
-import java.util.List;
 import java.util.Objects;
 
 interface HibernateReadProvider<E, ID> extends
         HibernateSessionFactorySupplier,
         EntityClassSupplier<E>,
         MutinyReadProviderSupport<E, ID> {
-
-    RSQLParser DEFAULT_RSQL_PARSER = new RSQLParser();
 
     @Protected
     default HibernateOmniSearch getOmniSerach() {
@@ -30,7 +27,7 @@ interface HibernateReadProvider<E, ID> extends
 
     @Protected
     default RSQLParser getRsqlParser() {
-        return DEFAULT_RSQL_PARSER;
+        return InternalUtils.DEFAULT_RSQL_PARSER;
     }
 
     @Override
@@ -70,28 +67,6 @@ interface HibernateReadProvider<E, ID> extends
         var entitiesClass = getEntityClass();
         return getSessionFactory().withSession(session -> session.find(entitiesClass, id))
                 .onItem().ifNull().failWith(() -> new NotFoundEntityException(entitiesClass, id));
-    }
-
-    @Override
-    @Protected
-    @Final
-    default Uni<List<E>> internalFind(List<ID> ids) {
-        return getSessionFactory().withSession(session -> {
-            var entityClass = getEntityClass();
-
-            var cb = session.getCriteriaBuilder();
-            var cq = cb.createQuery(entityClass);
-            var root = cq.from(entityClass);
-
-            var idFieldName = InternalUtils.getIdFieldName(entityClass);
-
-            cq.where(root.get(idFieldName).in(ids));
-
-            return session
-                    .createQuery(cq)
-                    .getResultList();
-
-        });
     }
 
     @Override

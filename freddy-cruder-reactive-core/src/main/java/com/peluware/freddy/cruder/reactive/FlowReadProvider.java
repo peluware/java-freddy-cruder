@@ -3,10 +3,8 @@ package com.peluware.freddy.cruder.reactive;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
-import java.util.List;
 import java.util.concurrent.Flow;
 
 /**
@@ -37,14 +35,6 @@ public interface FlowReadProvider<E, ID> {
      * @return a {@link Flow.Publisher} emitting the found entity, or completing empty if not found
      */
     Flow.Publisher<E> find(@NotNull ID id);
-
-    /**
-     * Finds multiple entities by their identifiers.
-     *
-     * @param ids list of identifiers
-     * @return a {@link Flow.Publisher} emitting the found entities (may complete empty if none exist)
-     */
-    Flow.Publisher<E> find(@NotNull @NotEmpty List<ID> ids);
 
     /**
      * Counts the number of entities matching the given search and query criteria.

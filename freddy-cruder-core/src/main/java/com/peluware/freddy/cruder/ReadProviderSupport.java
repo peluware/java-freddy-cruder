@@ -7,10 +7,7 @@ import com.peluware.freddy.cruder.annotations.Protected;
 import com.peluware.freddy.cruder.events.ReadEvents;
 import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
 import com.peluware.freddy.cruder.utils.StringUtils;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-
-import java.util.List;
 
 /**
  * Support implementation of {@link ReadProvider} providing common behavior based on default methods.
@@ -56,23 +53,6 @@ public interface ReadProviderSupport<E, ID> extends ReadProvider<E, ID>, CrudPro
 
         postProcess(CrudOperation.FIND);
         return model;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    default List<E> find(@NotNull @NotEmpty List<ID> ids) {
-        preProcess(CrudOperation.FIND);
-
-        var list = internalFind(ids);
-
-        var events = getEvents();
-        events.onFind(list, ids);
-        list.forEach(events::eachEntity);
-
-        postProcess(CrudOperation.FIND);
-        return list;
     }
 
     /**
@@ -155,9 +135,6 @@ public interface ReadProviderSupport<E, ID> extends ReadProvider<E, ID>, CrudPro
     E internalFind(ID id) throws NotFoundEntityException;
 
     @Protected
-    List<E> internalFind(List<ID> ids);
-
-    @Protected
     long internalCount(String search, String query);
 
     @Protected
@@ -168,6 +145,4 @@ public interface ReadProviderSupport<E, ID> extends ReadProvider<E, ID>, CrudPro
 
     @Protected
     boolean internalExists(ID id);
-
-
 }

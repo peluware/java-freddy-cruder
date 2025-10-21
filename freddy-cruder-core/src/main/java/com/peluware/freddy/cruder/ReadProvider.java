@@ -4,10 +4,7 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-
-import java.util.List;
 
 /**
  * Defines the contract for read-only operations on entities.
@@ -36,14 +33,6 @@ public interface ReadProvider<E, ID> {
      * @throws NotFoundEntityException if the entity does not exist
      */
     E find(@NotNull ID id) throws NotFoundEntityException;
-
-    /**
-     * Finds multiple entities by their identifiers.
-     *
-     * @param ids list of identifiers
-     * @return a list of found entities (may be empty if none exist)
-     */
-    List<E> find(@NotNull @NotEmpty List<ID> ids);
 
     /**
      * Counts the number of entities matching the given search and query criteria.

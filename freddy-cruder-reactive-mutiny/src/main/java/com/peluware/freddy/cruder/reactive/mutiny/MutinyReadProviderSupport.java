@@ -9,10 +9,7 @@ import com.peluware.freddy.cruder.annotations.Protected;
 import com.peluware.freddy.cruder.reactive.mutiny.events.MutinyReadEvents;
 import com.peluware.freddy.cruder.utils.StringUtils;
 import io.smallrye.mutiny.Uni;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-
-import java.util.List;
 
 /**
  * Support interface for reactive read operations, providing default behaviors
@@ -46,19 +43,6 @@ public interface MutinyReadProviderSupport<E, ID> extends MutinyReadProvider<E, 
                 .onItem().transformToUni(v -> internalFind(id))
                 .onItem().call(events::onFind)
                 .onItem().invoke(events::eachEntity)
-                .onItem().call(v -> postProcess(CrudOperation.FIND));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    default Uni<List<E>> find(@NotNull @NotEmpty List<ID> ids) {
-        var events = getEvents();
-        return preProcess(CrudOperation.FIND)
-                .onItem().transformToUni(v -> internalFind(ids))
-                .onItem().call(entities -> events.onFind(entities, ids))
-                .onItem().invoke(list -> list.forEach(events::eachEntity))
                 .onItem().call(v -> postProcess(CrudOperation.FIND));
     }
 
@@ -131,9 +115,6 @@ public interface MutinyReadProviderSupport<E, ID> extends MutinyReadProvider<E, 
 
     @Protected
     Uni<E> internalFind(ID id);
-
-    @Protected
-    Uni<List<E>> internalFind(List<ID> ids);
 
     @Protected
     Uni<Long> internalCount(String search, String query);

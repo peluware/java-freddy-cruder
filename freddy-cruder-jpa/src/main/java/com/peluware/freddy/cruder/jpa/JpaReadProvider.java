@@ -12,15 +12,12 @@ import com.peluware.omnisearch.OmniSearchOptions;
 import com.peluware.omnisearch.jpa.JpaOmniSearch;
 import cz.jirutka.rsql.parser.RSQLParser;
 
-import java.util.List;
 import java.util.Optional;
 
 public interface JpaReadProvider<E, ID> extends
         EntityManagerSupplier,
         EntityClassSupplier<E>,
         ReadProviderSupport<E, ID> {
-
-    RSQLParser DEFAULT_RSQL_PARSER = new RSQLParser();
 
 
     @Protected
@@ -30,7 +27,7 @@ public interface JpaReadProvider<E, ID> extends
 
     @Protected
     default RSQLParser getRsqlParser() {
-        return DEFAULT_RSQL_PARSER;
+        return InternalUtils.DEFAULT_RSQL_PARSER;
     }
 
     @Override
@@ -70,24 +67,6 @@ public interface JpaReadProvider<E, ID> extends
         var entityClass = getEntityClass();
         return Optional.ofNullable(getEntityManager().find(entityClass, id))
                 .orElseThrow(() -> new NotFoundEntityException(entityClass, id));
-    }
-
-    @Override
-    @Protected
-    @Final
-    default List<E> internalFind(List<ID> ids) {
-        var em = getEntityManager();
-        var entityClass = getEntityClass();
-
-        var cb = em.getCriteriaBuilder();
-        var cq = cb.createQuery(entityClass);
-        var root = cq.from(entityClass);
-
-        var idFieldName = InternalUtils.getIdFieldName(entityClass);
-
-        cq.where(root.get(idFieldName).in(ids));
-
-        return em.createQuery(cq).getResultList();
     }
 
     @Override

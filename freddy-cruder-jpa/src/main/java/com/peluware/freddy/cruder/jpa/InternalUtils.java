@@ -1,5 +1,6 @@
 package com.peluware.freddy.cruder.jpa;
 
+import cz.jirutka.rsql.parser.RSQLParser;
 import jakarta.persistence.Id;
 import lombok.experimental.UtilityClass;
 
@@ -9,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @UtilityClass
 class InternalUtils {
 
+    public static final RSQLParser DEFAULT_RSQL_PARSER = new RSQLParser();
     private static final Map<Class<?>, String> ID_FIELD_CACHE = new ConcurrentHashMap<>();
 
     public static String getIdFieldName(Class<?> entityClass) {
