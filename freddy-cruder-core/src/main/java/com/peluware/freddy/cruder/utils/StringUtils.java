@@ -1,22 +1,9 @@
 package com.peluware.freddy.cruder.utils;
 
-import lombok.experimental.UtilityClass;
-import org.jetbrains.annotations.NotNull;
-
-import java.text.Normalizer;
-
-@UtilityClass
 public final class StringUtils {
 
-    public static @NotNull String toASCII(@NotNull String string) {
-        try {
-            var normalizedString = Normalizer.normalize(string, Normalizer.Form.NFD);
-            return normalizedString
-                    .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-                    .replaceAll("[^\\p{ASCII}]", "");
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Error normalizando la cadena", e);
-        }
+    private StringUtils() {
+        throw new UnsupportedOperationException("Utility class");
     }
 
     public static boolean isEmpty(String string) {

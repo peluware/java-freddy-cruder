@@ -52,16 +52,11 @@
         <maven.compiler.release>21</maven.compiler.release>
         <encoding.default>UTF-8</encoding.default>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <com.peluware.omnisearch.version>2.0.0</com.peluware.omnisearch.version>
+        <com.peluware.omnisearch.version>2.1.0</com.peluware.omnisearch.version>
         <io.smallrye.reactive.mutiny.version>2.9.4</io.smallrye.reactive.mutiny.version>
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.42</version>
-        </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
@@ -130,7 +125,7 @@
             <dependency>
                 <groupId>com.peluware</groupId>
                 <artifactId>domain-commons</artifactId>
-                <version>1.0.2</version>
+                <version>1.0.3</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.validation</groupId>
@@ -150,13 +145,6 @@
                     <compilerArgs>
                         <arg>-parameters</arg>
                     </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>1.18.42</version>
-                        </path>
-                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>

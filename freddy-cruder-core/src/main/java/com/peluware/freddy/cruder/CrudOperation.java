@@ -1,10 +1,6 @@
 package com.peluware.freddy.cruder;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
-@Getter
-@RequiredArgsConstructor
 public enum CrudOperation {
     /**
      * Represents a create operation (write only).
@@ -68,6 +64,17 @@ public enum CrudOperation {
      * A value of {@code true} means the operation is read-related.
      */
     private final boolean read;
+
+    /**
+     * Constructor to initialize the CRUD operation with its read/write characteristics.
+     *
+     * @param write Indicates if the operation involves writing.
+     * @param read  Indicates if the operation involves reading.
+     */
+    CrudOperation(boolean write, boolean read) {
+        this.write = write;
+        this.read = read;
+    }
 
     /**
      * Checks if the operation is read-only.
