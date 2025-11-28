@@ -4,7 +4,6 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
-import com.peluware.freddy.cruder.reactive.mutiny.MutinyCrudEvents;
 import com.peluware.freddy.cruder.reactive.mutiny.MutinyEntityCrudProvider;
 import com.peluware.omnisearch.OmniSearchOptions;
 import com.peluware.omnisearch.hibernate.reactive.HibernateOmniSearch;
@@ -38,30 +37,21 @@ public abstract class HibernateCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends M
 
     protected final Mutiny.SessionFactory sessionFactory;
     protected final HibernateOmniSearch omniSearch;
-    protected final RSQLParser rsqlParser;
 
     /**
-     * Creates a Hibernate Reactive CRUD provider with custom event handling and search configuration.
+     * Creates a Hibernate Reactive CRUD provider with the given SessionFactory, HibernateOmniSearch, and entity class.
      */
-    public HibernateCrudProvider(Mutiny.SessionFactory session, HibernateOmniSearch omniSearch, RSQLParser rsqlParser, Class<ENTITY> entityClass, MutinyCrudEvents<ENTITY, ID, INPUT> crudEvents) {
-        super(entityClass, crudEvents);
-        this.sessionFactory = session;
+    public HibernateCrudProvider(Mutiny.SessionFactory sessionFactory, HibernateOmniSearch omniSearch, Class<ENTITY> entityClass) {
+        super(entityClass);
+        this.sessionFactory = sessionFactory;
         this.omniSearch = omniSearch;
-        this.rsqlParser = rsqlParser;
     }
 
     /**
-     * Creates a Hibernate Reactive CRUD provider using default {@link HibernateOmniSearch} and {@link RSQLParser}.
-     */
-    public HibernateCrudProvider(Mutiny.SessionFactory sessionFactory, Class<ENTITY> entityClass, MutinyCrudEvents<ENTITY, ID, INPUT> crudEvents) {
-        this(sessionFactory, new HibernateOmniSearch(sessionFactory), new RSQLParser(), entityClass, crudEvents);
-    }
-
-    /**
-     * Creates a Hibernate Reactive CRUD provider using default events, search, and parser.
+     * Creates a Hibernate Reactive CRUD provider with the given SessionFactory and entity class,
      */
     public HibernateCrudProvider(Mutiny.SessionFactory sessionFactory, Class<ENTITY> entityClass) {
-        this(sessionFactory, new HibernateOmniSearch(sessionFactory), new RSQLParser(), entityClass, MutinyCrudEvents.getDefault());
+        this(sessionFactory, new HibernateOmniSearch(sessionFactory, new RSQLParser()), entityClass);
     }
 
     // ------------------------------------------------------------

@@ -10,6 +10,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.Objects;
 import java.util.function.Supplier;
 
 
@@ -24,7 +25,7 @@ import java.util.function.Supplier;
  *
  * <ul>
  *   <li>Standardized CRUD operations defined by {@link MutinyCrudProvider}</li>
- *   <li>Entity/DTO mapping hooks via {@link #mapEntity(INPUT, ENTITY, boolean)} and {@link #mapOutput(ENTITY)}</li>
+ *   <li>Entity/DTO mapping hooks via {@link #mapInput(INPUT, ENTITY, boolean)} and {@link #mapOutput(ENTITY)}</li>
  *   <li>Automatic invocation of reactive CRUD lifecycle events via {@link MutinyCrudEvents}</li>
  *   <li>Pre- and post-operation hooks for cross-cutting concerns in a reactive context</li>
  *   <li>Optional reactive transaction wrapping through {@link #withTransaction(Supplier)}</li>
@@ -47,8 +48,7 @@ import java.util.function.Supplier;
  * @param <INPUT>  the input DTO type used for create/update operations
  * @param <OUTPUT> the output representation (DTO, projection, view model, etc.)
  */
-public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
-        implements MutinyCrudProvider<ID, INPUT, OUTPUT> {
+public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements MutinyCrudProvider<ID, INPUT, OUTPUT> {
 
     protected final Class<ENTITY> entityClass;
     private final MutinyCrudEvents<ENTITY, ID, INPUT> events;
@@ -57,21 +57,12 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
      * Creates a new reactive CRUD provider for the given entity type using custom lifecycle events.
      *
      * @param entityClass the entity class handled by this provider
-     * @param events      the reactive event dispatcher used to report CRUD lifecycle events
-     */
-    protected MutinyEntityCrudProvider(Class<ENTITY> entityClass, MutinyCrudEvents<ENTITY, ID, INPUT> events) {
-        this.entityClass = entityClass;
-        this.events = events;
-    }
-
-    /**
-     * Creates a new reactive CRUD provider using default {@link MutinyCrudEvents}.
-     *
-     * @param entityClass the entity class handled by this provider
      */
     protected MutinyEntityCrudProvider(Class<ENTITY> entityClass) {
-        this(entityClass, MutinyCrudEvents.getDefault());
+        this.entityClass = Objects.requireNonNull(entityClass, "Entity class must not be null");
+        this.events = registerEvents();
     }
+
 
     // ------------------------------------------------------------
     // REACTIVE CRUD OPERATIONS (public API)
@@ -89,7 +80,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
     @Override
     public final Uni<Page<OUTPUT>> page(String search, Pagination pagination, Sort sort, String query) {
         return preProcess(CrudOperation.PAGE)
-                .onItem().transformToUni(v -> resolvePage(StringUtils.normalize(search), pagination, sort, query))
+                .onItem().transformToUni(unused -> resolvePage(StringUtils.normalize(search), pagination, sort, query))
                 .onItem().call(events::onPage)
                 .onItem().invoke(page -> page.getContent().forEach(events::eachEntity))
                 .onItem().call(page -> postProcess(CrudOperation.PAGE))
@@ -125,9 +116,9 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
     @Override
     public final Uni<Long> count(String search, String query) {
         return preProcess(CrudOperation.COUNT)
-                .onItem().transformToUni(v -> resolveCount(StringUtils.normalize(search), query))
+                .onItem().transformToUni(unused -> resolveCount(StringUtils.normalize(search), query))
                 .onItem().call(events::onCount)
-                .onItem().call(v -> postProcess(CrudOperation.COUNT));
+                .onItem().call(result -> postProcess(CrudOperation.COUNT));
     }
 
     /**
@@ -140,7 +131,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
     @Override
     public final Uni<Boolean> exists(@NotNull ID id) {
         return preProcess(CrudOperation.EXISTS)
-                .onItem().transformToUni(v -> internalExists(id))
+                .onItem().transformToUni(unused -> internalExists(id))
                 .onItem().call(exists -> events.onExists(exists, id))
                 .onItem().call(exists -> postProcess(CrudOperation.EXISTS));
     }
@@ -153,7 +144,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
      * </p>
      * <ol>
      *   <li>Creates a new empty entity via {@link #newEntity()}</li>
-     *   <li>Maps the input DTO into the entity using {@link #mapEntity(INPUT, ENTITY, boolean)}</li>
+     *   <li>Maps the input DTO into the entity using {@link #mapInput(INPUT, ENTITY, boolean)}</li>
      *   <li>Triggers "before create" reactive events</li>
      *   <li>Persists the entity with {@link #internalCreate(ENTITY)}</li>
      *   <li>Triggers "after create" reactive events</li>
@@ -165,9 +156,9 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
         return preProcess(CrudOperation.CREATE)
                 .onItem().transformToUni(v -> withTransaction(() -> {
                     var entity = newEntity();
-                    return mapEntity(input, entity, true)
-                            .onItem().call(vv -> events.onBeforeCreate(input, entity))
-                            .onItem().transformToUni(vv -> internalCreate(entity))
+                    return mapInput(input, entity, true)
+                            .onItem().call(unused -> events.onBeforeCreate(input, entity))
+                            .onItem().transformToUni(unused -> internalCreate(entity))
                             .onItem().call(created -> events.onAfterCreate(input, created))
                             .onItem().invoke(events::eachEntity);
                 }))
@@ -195,7 +186,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
         return preProcess(CrudOperation.UPDATE)
                 .onItem().transformToUni(v -> withTransaction(() ->
                         internalFind(id)
-                                .onItem().call(entity -> mapEntity(input, entity, false))
+                                .onItem().call(entity -> mapInput(input, entity, false))
                                 .onItem().call(entity -> events.onBeforeUpdate(input, entity))
                                 .onItem().transformToUni(this::internalUpdate)
                                 .onItem().call(updated -> events.onAfterUpdate(input, updated))
@@ -226,7 +217,6 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
                                 .onItem().call(events::onBeforeDelete)
                                 .onItem().call(this::internalDelete)
                                 .onItem().call(events::onAfterDelete)
-                                .onItem().invoke(events::eachEntity)
                                 .replaceWithVoid()
                 ))
                 .onItem().call(unused -> postProcess(CrudOperation.DELETE));
@@ -244,7 +234,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
      * @param isNew  whether this is a creation (true) or update (false)
      * @return a {@link Uni} completing when the mapping is done
      */
-    protected abstract Uni<Void> mapEntity(INPUT input, ENTITY entity, boolean isNew);
+    protected abstract Uni<Void> mapInput(INPUT input, ENTITY entity, boolean isNew);
 
     /**
      * Converts an entity into its output DTO reactively.
@@ -339,6 +329,15 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>
      */
     protected <T> Uni<T> withTransaction(Supplier<Uni<T>> function) {
         return function.get();
+    }
+
+    /**
+     * Registers the CRUD lifecycle events handler.
+     *
+     * @return the registered events handler
+     */
+    protected MutinyCrudEvents<ENTITY, ID, INPUT> registerEvents() {
+        return MutinyCrudEvents.getDefault();
     }
 
     private Uni<Page<ENTITY>> resolvePage(String search, Pagination pagination, Sort sort, String query) {

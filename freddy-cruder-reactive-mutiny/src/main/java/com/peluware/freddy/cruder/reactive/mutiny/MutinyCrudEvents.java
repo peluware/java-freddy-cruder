@@ -30,7 +30,6 @@ public interface MutinyCrudEvents<ENTITY, ID, INPUT> {
         return Uni.createFrom().voidItem();
     }
 
-
     default Uni<Void> onBeforeCreate(INPUT input, ENTITY entity) {
         return Uni.createFrom().voidItem();
     }

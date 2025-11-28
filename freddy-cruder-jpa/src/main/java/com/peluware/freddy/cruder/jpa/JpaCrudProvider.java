@@ -3,7 +3,6 @@ package com.peluware.freddy.cruder.jpa;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
-import com.peluware.freddy.cruder.CrudEvents;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
 import com.peluware.omnisearch.OmniSearchOptions;
@@ -12,6 +11,7 @@ import cz.jirutka.rsql.parser.RSQLParser;
 import jakarta.persistence.EntityManager;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * JPA-specific implementation of {@link EntityCrudProvider} that provides
@@ -36,30 +36,22 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
 
     protected final EntityManager entityManager;
     protected final JpaOmniSearch omniSearch;
-    protected final RSQLParser rsqlParser;
 
     /**
-     * Creates a JPA CRUD provider with custom event handling and search configuration.
+     * Creates a JPA CRUD provider with the given EntityManager, JpaOmniSearch, and entity class.
      */
-    public JpaCrudProvider(EntityManager entityManager, JpaOmniSearch omniSearch, RSQLParser rsqlParser, Class<ENTITY> entityClass, CrudEvents<ENTITY, ID, INPUT> crudEvents) {
-        super(entityClass, crudEvents);
+    public JpaCrudProvider(EntityManager entityManager, JpaOmniSearch omniSearch, Class<ENTITY> entityClass) {
+        super(entityClass);
         this.entityManager = entityManager;
         this.omniSearch = omniSearch;
-        this.rsqlParser = rsqlParser;
     }
 
     /**
-     * Creates a JPA CRUD provider using default {@link JpaOmniSearch} and {@link RSQLParser}.
-     */
-    public JpaCrudProvider(EntityManager entityManager, Class<ENTITY> entityClass, CrudEvents<ENTITY, ID, INPUT> crudEvents) {
-        this(entityManager, new JpaOmniSearch(entityManager), new RSQLParser(), entityClass, crudEvents);
-    }
-
-    /**
-     * Creates a JPA CRUD provider using default events, search, and parser.
+     * Creates a JPA CRUD provider with the given EntityManager and entity class,
+     * using a default JpaOmniSearch with RSQL parsing.
      */
     public JpaCrudProvider(EntityManager entityManager, Class<ENTITY> entityClass) {
-        this(entityManager, new JpaOmniSearch(entityManager), new RSQLParser(), entityClass, CrudEvents.getDefault());
+        this(entityManager, new JpaOmniSearch(entityManager, new RSQLParser()), entityClass);
     }
 
     // ------------------------------------------------------------
@@ -176,6 +168,25 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
     @Override
     protected void internalDelete(ENTITY entity) {
         entityManager.remove(entity);
+    }
+
+    /**
+     * Executes a function within a transaction.
+     */
+    @Override
+    protected <T> T withTransaction(Supplier<T> function) {
+        var transaction = entityManager.getTransaction();
+        try {
+            transaction.begin();
+            T result = function.get();
+            transaction.commit();
+            return result;
+        } catch (RuntimeException e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
+            throw e;
+        }
     }
 
     /**

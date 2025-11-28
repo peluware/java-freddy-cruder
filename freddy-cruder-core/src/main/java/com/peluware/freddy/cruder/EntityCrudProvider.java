@@ -8,6 +8,7 @@ import com.peluware.freddy.cruder.utils.StringUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -52,21 +53,12 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * Creates a new CRUD provider for the given entity type using custom CRUD lifecycle events.
      *
      * @param entityClass the entity class handled by this provider
-     * @param events      the event dispatcher used to report CRUD lifecycle events
-     */
-    protected EntityCrudProvider(Class<ENTITY> entityClass, CrudEvents<ENTITY, ID, INPUT> events) {
-        this.entityClass = entityClass;
-        this.events = events;
-    }
-
-    /**
-     * Creates a new CRUD provider using default {@link CrudEvents}.
-     *
-     * @param entityClass the entity class handled by this provider
      */
     protected EntityCrudProvider(Class<ENTITY> entityClass) {
-        this(entityClass, CrudEvents.getDefault());
+        this.entityClass = Objects.requireNonNull(entityClass, "Entity class must not be null");
+        this.events = registerEvents();
     }
+
 
     // ------------------------------------------------------------
     // CRUD OPERATIONS (public API)
@@ -251,10 +243,10 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
             var entity = internalFind(id);
 
             events.onBeforeDelete(entity);
-            internalDelete(entity);
-            events.onAfterDelete(entity);
 
-            events.eachEntity(entity);
+            internalDelete(entity);
+
+            events.onAfterDelete(entity);
             return null;
         });
 
@@ -371,6 +363,15 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      */
     protected <T> T withTransaction(Supplier<T> function) {
         return function.get();
+    }
+
+    /**
+     * Registers the CRUD lifecycle events handler.
+     *
+     * @return the CRUD lifecycle events handler
+     */
+    protected CrudEvents<ENTITY, ID, INPUT> registerEvents() {
+        return CrudEvents.getDefault();
     }
 
     private Page<ENTITY> resolvePage(String search, Pagination pagination, Sort sort, String query) {
