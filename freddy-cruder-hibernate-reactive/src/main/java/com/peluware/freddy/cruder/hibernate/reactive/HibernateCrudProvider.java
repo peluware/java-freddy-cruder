@@ -59,28 +59,10 @@ public abstract class HibernateCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends M
     // ------------------------------------------------------------
 
     /**
-     * Retrieves a paginated list of entities.
-     */
-    protected Uni<Page<ENTITY>> internalPage(Pagination pagination, Sort sort) {
-        return omniSearch.page(entityClass, new OmniSearchOptions()
-                .pagination(pagination)
-                .sort(sort));
-    }
-
-    /**
-     * Searches entities using a search string with pagination and sorting.
-     */
-    protected Uni<Page<ENTITY>> internalSearch(String search, Pagination pagination, Sort sort) {
-        return omniSearch.page(entityClass, new OmniSearchOptions()
-                .search(search)
-                .pagination(pagination)
-                .sort(sort));
-    }
-
-    /**
      * Searches entities using a search string and RSQL query with pagination and sorting.
      */
-    protected Uni<Page<ENTITY>> internalSearch(String search, Pagination pagination, Sort sort, String query) {
+    @Override
+    protected Uni<Page<ENTITY>> internalPage(String search, String query, Pagination pagination, Sort sort) {
         return omniSearch.page(entityClass, new OmniSearchOptions()
                 .search(search)
                 .pagination(pagination)
@@ -91,6 +73,7 @@ public abstract class HibernateCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends M
     /**
      * Finds an entity by its identifier or fails with {@link NotFoundEntityException}.
      */
+    @Override
     protected Uni<ENTITY> internalFind(ID id) {
         return sessionFactory.withSession(session -> session.find(entityClass, id))
                 .onItem().ifNull().failWith(() -> new NotFoundEntityException(entityClass, id));
@@ -99,32 +82,11 @@ public abstract class HibernateCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends M
     /**
      * Counts entities matching search string and RSQL query.
      */
+    @Override
     protected Uni<Long> internalCount(String search, String query) {
         return omniSearch.count(entityClass, new OmniSearchOptions()
                 .search(search)
                 .query(query));
-    }
-
-    /**
-     * Counts entities matching search string.
-     */
-    protected Uni<Long> internalCount(String search) {
-        return omniSearch.count(entityClass, new OmniSearchOptions()
-                .search(search));
-    }
-
-    /**
-     * Counts all entities.
-     */
-    @Override
-    protected Uni<Long> internalCount() {
-        return sessionFactory.withSession(session -> {
-            var cb = session.getCriteriaBuilder();
-            var cq = cb.createQuery(Long.class);
-            var root = cq.from(entityClass);
-            cq.select(cb.count(root));
-            return session.createQuery(cq).getSingleResult();
-        });
     }
 
     /**

@@ -23,12 +23,12 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * Retrieves a paginated list of resources based on optional search criteria and filtering expression.
      *
      * @param search     optional text-based search (may be {@code null})
+     * @param query      additional filtering expression, may be {@code null}
      * @param pagination pagination settings, or {@code null} for unpaginated results
      * @param sort       sorting configuration, or {@code null} for unsorted results
-     * @param query      additional filtering expression, may be {@code null}
      * @return a {@link Page} containing the paginated result set
      */
-    Page<OUTPUT> page(String search, Pagination pagination, Sort sort, String query);
+    Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort);
 
     /**
      * Finds a resource by its identifier.

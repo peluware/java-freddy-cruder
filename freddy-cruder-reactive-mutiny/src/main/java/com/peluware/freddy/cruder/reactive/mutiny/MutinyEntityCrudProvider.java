@@ -78,7 +78,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
      * </p>
      */
     @Override
-    public final Uni<Page<OUTPUT>> page(String search, Pagination pagination, Sort sort, String query) {
+    public Uni<Page<OUTPUT>> page(String search, String query, Pagination pagination, Sort sort) {
         return preProcess(CrudOperation.PAGE)
                 .onItem().transformToUni(unused -> resolvePage(StringUtils.normalize(search), pagination, sort, query))
                 .onItem().call(events::onPage)
@@ -96,7 +96,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
      * </p>
      */
     @Override
-    public final Uni<OUTPUT> find(@NotNull ID id) {
+    public Uni<OUTPUT> find(@NotNull ID id) {
         return preProcess(CrudOperation.FIND)
                 .onItem().transformToUni(v -> internalFind(id))
                 .onItem().call(events::onFind)
@@ -114,7 +114,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
      * </p>
      */
     @Override
-    public final Uni<Long> count(String search, String query) {
+    public Uni<Long> count(String search, String query) {
         return preProcess(CrudOperation.COUNT)
                 .onItem().transformToUni(unused -> resolveCount(StringUtils.normalize(search), query))
                 .onItem().call(events::onCount)
@@ -129,7 +129,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
      * </p>
      */
     @Override
-    public final Uni<Boolean> exists(@NotNull ID id) {
+    public Uni<Boolean> exists(@NotNull ID id) {
         return preProcess(CrudOperation.EXISTS)
                 .onItem().transformToUni(unused -> internalExists(id))
                 .onItem().call(exists -> events.onExists(exists, id))
@@ -152,7 +152,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
      * </ol>
      */
     @Override
-    public final Uni<OUTPUT> create(@NotNull @Valid INPUT input) {
+    public Uni<OUTPUT> create(@NotNull @Valid INPUT input) {
         return preProcess(CrudOperation.CREATE)
                 .onItem().transformToUni(v -> withTransaction(() -> {
                     var entity = newEntity();
@@ -182,7 +182,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
      * </ol>
      */
     @Override
-    public final Uni<OUTPUT> update(@NotNull ID id, @NotNull @Valid INPUT input) {
+    public Uni<OUTPUT> update(@NotNull ID id, @NotNull @Valid INPUT input) {
         return preProcess(CrudOperation.UPDATE)
                 .onItem().transformToUni(v -> withTransaction(() ->
                         internalFind(id)
@@ -210,7 +210,7 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
      * </ol>
      */
     @Override
-    public final Uni<Void> delete(@NotNull ID id) {
+    public Uni<Void> delete(@NotNull ID id) {
         return preProcess(CrudOperation.DELETE)
                 .onItem().transformToUni(v -> withTransaction(() ->
                         internalFind(id)
@@ -248,17 +248,9 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
     // ABSTRACT PERSISTENCE CONTRACTS
     // ------------------------------------------------------------
 
-    protected abstract Uni<Page<ENTITY>> internalPage(Pagination pagination, Sort sort);
-
-    protected abstract Uni<Page<ENTITY>> internalSearch(String search, Pagination pagination, Sort sort);
-
-    protected abstract Uni<Page<ENTITY>> internalSearch(String search, Pagination pagination, Sort sort, String query);
+    protected abstract Uni<Page<ENTITY>> internalPage(String search, String query, Pagination pagination, Sort sort);
 
     protected abstract Uni<Long> internalCount(String search, String query);
-
-    protected abstract Uni<Long> internalCount(String search);
-
-    protected abstract Uni<Long> internalCount();
 
     protected abstract Uni<Boolean> internalExists(ID id);
 
@@ -340,23 +332,27 @@ public abstract class MutinyEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implem
         return MutinyCrudEvents.getDefault();
     }
 
+
+    /**
+     * Processes the raw query string before use.
+     *
+     * @param query the raw query string
+     * @return the processed query string
+     */
+    protected String applyQueryPolicies(String query) {
+        return query;
+    }
+
+
     private Uni<Page<ENTITY>> resolvePage(String search, Pagination pagination, Sort sort, String query) {
         if (pagination == null) pagination = Pagination.unpaginated();
         if (sort == null) sort = Sort.unsorted();
-        if (query == null) {
-            return StringUtils.isEmpty(search)
-                    ? internalPage(pagination, sort)
-                    : internalSearch(search, pagination, sort);
-        }
-        return internalSearch(search, pagination, sort, query);
+        var newQuery = applyQueryPolicies(query);
+        return internalPage(search, newQuery, pagination, sort);
     }
 
     private Uni<Long> resolveCount(String search, String query) {
-        if (query == null) {
-            return StringUtils.isEmpty(search)
-                    ? internalCount()
-                    : internalCount(search);
-        }
-        return internalCount(search, query);
+        var newQuery = applyQueryPolicies(query);
+        return internalCount(search, newQuery);
     }
 }

@@ -24,12 +24,12 @@ public interface MutinyCrudProvider<ID, INPUT, OUTPUT> {
      * Retrieves a reactive paginated list of entities based on optional search criteria and query.
      *
      * @param search     optional search string (normalized before use)
+     * @param query      additional query criteria, may be {@code null}
      * @param pagination pagination settings, may be {@code null} for unpaginated
      * @param sort       sorting options, may be {@code null} for unsorted
-     * @param query      additional query criteria, may be {@code null}
      * @return a {@link Uni} emitting a {@link Page} of entities
      */
-    Uni<Page<OUTPUT>> page(String search, Pagination pagination, Sort sort, String query);
+    Uni<Page<OUTPUT>> page(String search, String query, Pagination pagination, Sort sort);
 
     /**
      * Finds an entity by its identifier.

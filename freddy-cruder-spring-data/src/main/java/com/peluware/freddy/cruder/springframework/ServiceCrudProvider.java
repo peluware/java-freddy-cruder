@@ -28,22 +28,7 @@ public abstract class ServiceCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends Ent
     }
 
     @Override
-    protected Page<ENTITY> internalPage(Pagination pagination, Sort sort) {
-        return omniSearch.page(entityClass, new OmniSearchOptions()
-                .pagination(pagination)
-                .sort(sort));
-    }
-
-    @Override
-    protected Page<ENTITY> internalSearch(String search, Pagination pagination, Sort sort) {
-        return omniSearch.page(entityClass, new OmniSearchOptions()
-                .search(search)
-                .pagination(pagination)
-                .sort(sort));
-    }
-
-    @Override
-    protected Page<ENTITY> internalSearch(String search, Pagination pagination, Sort sort, String query) {
+    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort) {
         return omniSearch.page(entityClass, new OmniSearchOptions()
                 .search(search)
                 .query(query)
@@ -56,17 +41,6 @@ public abstract class ServiceCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends Ent
         return omniSearch.count(entityClass, new OmniSearchOptions()
                 .search(search)
                 .query(query));
-    }
-
-    @Override
-    protected long internalCount(String search) {
-        return omniSearch.count(entityClass, new OmniSearchOptions()
-                .search(search));
-    }
-
-    @Override
-    protected long internalCount() {
-        return repository.count();
     }
 
     @Override

@@ -32,12 +32,12 @@ public interface FlowCrudProvider<OUTPUT, INPUT, ID> {
      * Retrieves a paginated list of entities based on optional search criteria and query.
      *
      * @param search     optional search string (normalized before use)
+     * @param query      additional query criteria, may be {@code null}
      * @param pagination pagination settings, may be {@code null} for unpaginated
      * @param sort       sorting options, may be {@code null} for unsorted
-     * @param query      additional query criteria, may be {@code null}
      * @return a {@link Flow.Publisher} emitting a single {@link Page} of entities
      */
-    Flow.Publisher<Page<OUTPUT>> page(String search, Pagination pagination, Sort sort, String query);
+    Flow.Publisher<Page<OUTPUT>> page(String search, String query, Pagination pagination, Sort sort);
 
     /**
      * Finds an entity by its identifier.

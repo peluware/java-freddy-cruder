@@ -67,32 +67,12 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
                 .orElseThrow(() -> new NotFoundEntityException(entityClass, id));
     }
 
-    /**
-     * Retrieves a paginated list of entities.
-     */
-    @Override
-    protected Page<ENTITY> internalPage(Pagination pagination, Sort sort) {
-        return omniSearch.page(entityClass, new OmniSearchOptions()
-                .pagination(pagination)
-                .sort(sort));
-    }
-
-    /**
-     * Searches entities using a search string with pagination and sorting.
-     */
-    @Override
-    protected Page<ENTITY> internalSearch(String search, Pagination pagination, Sort sort) {
-        return omniSearch.page(entityClass, new OmniSearchOptions()
-                .search(search)
-                .pagination(pagination)
-                .sort(sort));
-    }
 
     /**
      * Searches entities using a search string and RSQL query with pagination and sorting.
      */
     @Override
-    protected Page<ENTITY> internalSearch(String search, Pagination pagination, Sort sort, String query) {
+    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort) {
         return omniSearch.page(entityClass, new OmniSearchOptions()
                 .search(search)
                 .pagination(pagination)
@@ -108,27 +88,6 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
         return omniSearch.count(entityClass, new OmniSearchOptions()
                 .search(search)
                 .query(query));
-    }
-
-    /**
-     * Counts entities matching search string.
-     */
-    @Override
-    protected long internalCount(String search) {
-        return omniSearch.count(entityClass, new OmniSearchOptions()
-                .search(search));
-    }
-
-    /**
-     * Counts all entities.
-     */
-    @Override
-    protected long internalCount() {
-        var cb = entityManager.getCriteriaBuilder();
-        var cq = cb.createQuery(Long.class);
-        var root = cq.from(entityClass);
-        cq.select(cb.count(root));
-        return entityManager.createQuery(cq).getSingleResult();
     }
 
     /**

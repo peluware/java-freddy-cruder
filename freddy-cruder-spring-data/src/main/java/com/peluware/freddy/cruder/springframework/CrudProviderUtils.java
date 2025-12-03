@@ -21,7 +21,7 @@ public final class CrudProviderUtils {
                                                                      Pageable pageable) {
         var pagination = toPagination(pageable);
         var sort = toSort(pageable.getSort());
-        var page = provider.page(search, pagination, sort, query);
+        var page = provider.page(search, query, pagination, sort);
         return new PageImpl<>(page.getContent(), pageable, page.getTotalElements());
     }
 
