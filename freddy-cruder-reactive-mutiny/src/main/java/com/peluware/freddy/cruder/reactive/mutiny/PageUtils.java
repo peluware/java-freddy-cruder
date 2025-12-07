@@ -50,8 +50,20 @@ public class PageUtils {
      */
     public static <T, R> Uni<Page<R>> map(Page<T> original, Function<T, Uni<R>> mapper) {
 
+        var content = original.getContent();
+
+        if (content.isEmpty()) {
+            // Si la página original está vacía, devolvemos una página vacía de R
+            return Uni.createFrom().item(new Page<>(
+                    List.of(),
+                    original.getPagination(),
+                    original.getSort(),
+                    original.getTotalElements()
+            ));
+        }
+
         // Convertimos los T en una lista de Uni<R>
-        var mappedUnis = original.getContent().stream()
+        var mappedUnis = content.stream()
                 .map(mapper)
                 .toList();
 
