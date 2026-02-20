@@ -1,4 +1,4 @@
-package com.peluware.freddy.cruder.exceptions;
+package com.peluware.freddy.cruder;
 
 
 public class NotFoundEntityException extends RuntimeException {

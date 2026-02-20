@@ -1,8 +1,7 @@
 package com.peluware.freddy.cruder.springframework.web;
 
 
-import com.peluware.freddy.cruder.CrudProvider;
-import com.peluware.freddy.cruder.springframework.CrudProviderUtils;
+import com.peluware.freddy.cruder.springframework.SpringCrudProvider;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 public interface PageController<ID, OUTPUT> {
 
-    CrudProvider<ID, ?, OUTPUT> getService();
+    SpringCrudProvider<ID, ?, OUTPUT> getService();
 
     @GetMapping
     default ResponseEntity<@NonNull Page<@NonNull OUTPUT>> page(
@@ -21,11 +20,6 @@ public interface PageController<ID, OUTPUT> {
             @RequestParam(required = false) String query,
             Pageable pageable
     ) {
-        return ResponseEntity.ok(CrudProviderUtils.adaptSpringPage(
-                getService(),
-                search,
-                query,
-                pageable
-        ));
+        return ResponseEntity.ok(getService().page(search, query, pageable));
     }
 }

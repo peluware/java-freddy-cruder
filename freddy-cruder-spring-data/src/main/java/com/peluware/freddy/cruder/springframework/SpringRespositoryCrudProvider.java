@@ -3,22 +3,25 @@ package com.peluware.freddy.cruder.springframework;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
-import com.peluware.freddy.cruder.EntityCrudProvider;
-import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
-import com.peluware.omnisearch.OmniSearch;
+import com.peluware.freddy.cruder.NotFoundEntityException;
+import com.peluware.omnisearch.EntityOmniSearch;
 import com.peluware.omnisearch.OmniSearchOptions;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.repository.CrudRepository;
 
-public abstract class ServiceCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> {
+public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends SpringEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> {
 
     protected final CrudRepository<@NonNull ENTITY, @NonNull ID> repository;
-    protected final OmniSearch omniSearch;
+    protected final EntityOmniSearch<@NonNull ENTITY> entityOmniSearch;
 
-    public ServiceCrudProvider(CrudRepository<@NonNull ENTITY, @NonNull ID> repository, OmniSearch omniSearch, Class<ENTITY> entityClass) {
+    public SpringRespositoryCrudProvider(CrudRepository<@NonNull ENTITY, @NonNull ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, Class<ENTITY> entityClass) {
         super(entityClass);
         this.repository = repository;
-        this.omniSearch = omniSearch;
+        this.entityOmniSearch = entityOmniSearch;
+    }
+
+    public SpringRespositoryCrudProvider(CrudSearchRepository<@NonNull ENTITY, @NonNull ID> repository, Class<ENTITY> entityClass) {
+        this(repository, repository, entityClass);
     }
 
     @Override
@@ -29,18 +32,20 @@ public abstract class ServiceCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends Ent
 
     @Override
     protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort) {
-        return omniSearch.page(entityClass, new OmniSearchOptions()
+        return entityOmniSearch.page(new OmniSearchOptions()
                 .search(search)
                 .query(query)
                 .pagination(pagination)
-                .sort(sort));
+                .sort(sort)
+        );
     }
 
     @Override
     protected long internalCount(String search, String query) {
-        return omniSearch.count(entityClass, new OmniSearchOptions()
+        return entityOmniSearch.count(new OmniSearchOptions()
                 .search(search)
-                .query(query));
+                .query(query)
+        );
     }
 
     @Override

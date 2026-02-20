@@ -7,6 +7,13 @@
         <option value="$PROJECT_DIR$/pom.xml" />
       </list>
     </option>
+    <option name="ignoredFiles">
+      <set>
+        <option value="$PROJECT_DIR$/freddy-cruder-hibernate-reactive/pom.xml" />
+        <option value="$PROJECT_DIR$/freddy-cruder-reactive-core/pom.xml" />
+        <option value="$PROJECT_DIR$/freddy-cruder-reactive-mutiny/pom.xml" />
+      </set>
+    </option>
   </component>
   <component name="ProjectRootManager" version="2" languageLevel="JDK_25" default="true" project-jdk-name="graalvm-25" project-jdk-type="JavaSDK" />
 </project>

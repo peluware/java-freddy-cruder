@@ -44,6 +44,5 @@ public interface CrudEvents<ENTITY, ID, INPUT> {
     }
 
     default void eachEntity(ENTITY entity) {
-
     }
 }

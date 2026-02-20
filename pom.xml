@@ -6,7 +6,7 @@
 
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder</artifactId>
-    <version>1.1.34</version>
+    <version>1.2.0</version>
     <packaging>pom</packaging>
     <name>Freddy Cruder</name>
     <description>
@@ -38,23 +38,16 @@
     </scm>
 
     <modules>
-        <!-- IMPERATIVE -->
         <module>freddy-cruder-core</module>
         <module>freddy-cruder-jpa</module>
         <module>freddy-cruder-spring-data</module>
-
-        <!-- REACTIVE -->
-        <module>freddy-cruder-reactive-core</module>
-        <module>freddy-cruder-reactive-mutiny</module>
-        <module>freddy-cruder-hibernate-reactive</module>
     </modules>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
         <encoding.default>UTF-8</encoding.default>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <com.peluware.omnisearch.version>2.1.1</com.peluware.omnisearch.version>
-        <io.smallrye.reactive.mutiny.version>2.9.4</io.smallrye.reactive.mutiny.version>
+        <com.peluware.omnisearch.version>2.2.0</com.peluware.omnisearch.version>
     </properties>
 
     <dependencyManagement>
@@ -81,43 +74,13 @@
             </dependency>
             <dependency>
                 <groupId>com.peluware</groupId>
-                <artifactId>freddy-cruder-reactive-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.peluware</groupId>
-                <artifactId>freddy-cruder-reactive-mutiny</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.peluware</groupId>
-                <artifactId>freddy-cruder-hibernate-reactive</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.peluware</groupId>
                 <artifactId>omni-search-core</artifactId>
-                <version>${com.peluware.omnisearch.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.peluware</groupId>
-                <artifactId>omni-search-hibernate-reactive</artifactId>
                 <version>${com.peluware.omnisearch.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.peluware</groupId>
                 <artifactId>omni-search-jpa</artifactId>
                 <version>${com.peluware.omnisearch.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.peluware</groupId>
-                <artifactId>omni-search-mongodb</artifactId>
-                <version>${com.peluware.omnisearch.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.smallrye.reactive</groupId>
-                <artifactId>mutiny</artifactId>
-                <version>${io.smallrye.reactive.mutiny.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.peluware</groupId>

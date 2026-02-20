@@ -4,7 +4,8 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudProvider;
-import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
+import com.peluware.freddy.cruder.NotFoundEntityException;
+import com.peluware.omnisearch.OmniSearch;
 import com.peluware.omnisearch.OmniSearchOptions;
 import com.peluware.omnisearch.jpa.JpaOmniSearch;
 import cz.jirutka.rsql.parser.RSQLParser;
@@ -35,12 +36,12 @@ import java.util.function.Supplier;
 public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> {
 
     protected final EntityManager entityManager;
-    protected final JpaOmniSearch omniSearch;
+    protected final OmniSearch omniSearch;
 
     /**
      * Creates a JPA CRUD provider with the given EntityManager, JpaOmniSearch, and entity class.
      */
-    public JpaCrudProvider(EntityManager entityManager, JpaOmniSearch omniSearch, Class<ENTITY> entityClass) {
+    public JpaCrudProvider(EntityManager entityManager, OmniSearch omniSearch, Class<ENTITY> entityClass) {
         super(entityClass);
         this.entityManager = entityManager;
         this.omniSearch = omniSearch;

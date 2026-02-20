@@ -1,7 +1,7 @@
 package com.peluware.freddy.cruder.springframework.web;
 
 
-import com.peluware.freddy.cruder.CrudProvider;
+import com.peluware.freddy.cruder.springframework.SpringCrudProvider;
 
 
 public interface ReadController<ID, OUTPUT> extends
@@ -11,5 +11,5 @@ public interface ReadController<ID, OUTPUT> extends
         ExistsController<ID> {
 
     @Override
-    CrudProvider<ID, ?, OUTPUT> getService();
+    SpringCrudProvider<ID, ?, OUTPUT> getService();
 }

@@ -3,7 +3,6 @@ package com.peluware.freddy.cruder;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
-import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
 import com.peluware.freddy.cruder.utils.StringUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -47,7 +46,7 @@ import java.util.function.Supplier;
 public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT> {
 
     protected final Class<ENTITY> entityClass;
-    private final CrudEvents<ENTITY, ID, INPUT> events;
+    protected final CrudEvents<ENTITY, ID, INPUT> events;
 
     /**
      * Creates a new CRUD provider for the given entity type using custom CRUD lifecycle events.

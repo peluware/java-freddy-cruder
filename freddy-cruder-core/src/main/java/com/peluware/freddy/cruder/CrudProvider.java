@@ -3,7 +3,6 @@ package com.peluware.freddy.cruder;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
-import com.peluware.freddy.cruder.exceptions.NotFoundEntityException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 

@@ -1,7 +1,7 @@
 package com.peluware.freddy.cruder.springframework.web;
 
 
-import com.peluware.freddy.cruder.CrudProvider;
+import com.peluware.freddy.cruder.springframework.SpringCrudProvider;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 public interface CountController {
 
-    CrudProvider<?, ?, ?> getService();
+    SpringCrudProvider<?, ?, ?> getService();
 
     @GetMapping("/count")
     default ResponseEntity<@NonNull Long> count(
