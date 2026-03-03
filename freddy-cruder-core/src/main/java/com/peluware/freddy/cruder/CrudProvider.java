@@ -8,9 +8,26 @@ import jakarta.validation.constraints.NotNull;
 
 /**
  * Proveedor genérico CRUD diseñado para desacoplar la lógica de aplicación
- * de los detalles de persistencia. Las implementaciones definen cómo se
- * crean, recuperan, actualizan, eliminan y listan entidades, sin imponer
- * restricciones sobre el framework o la tecnología subyacente.
+ * de los detalles de persistencia.
+ *
+ * <p>
+ * Las implementaciones definen cómo se crean, recuperan, actualizan,
+ * eliminan y listan entidades, sin imponer restricciones sobre el framework
+ * o la tecnología subyacente.
+ * </p>
+ *
+ * <p>
+ * Este contrato soporta extensibilidad mediante {@link CrudOptions},
+ * permitiendo pasar metadatos adicionales para modificar el comportamiento
+ * de cada operación (por ejemplo: incluir relaciones, ejecución parcial,
+ * flags de auditoría, soft-delete, hints de optimización, etc).
+ * </p>
+ *
+ * <p>
+ * Todos los métodos poseen una versión simplificada que utiliza
+ * {@link CrudOptions#DEFAULT} por defecto para mantener compatibilidad
+ * hacia atrás y simplicidad de uso.
+ * </p>
  *
  * @param <ID>     Tipo del identificador único del recurso.
  * @param <INPUT>  Tipo del DTO de entrada usado para crear o actualizar recursos.
@@ -18,8 +35,13 @@ import jakarta.validation.constraints.NotNull;
  */
 public interface CrudProvider<ID, INPUT, OUTPUT> {
 
+    // ==================================================
+    // PAGE
+    // ==================================================
+
     /**
-     * Retrieves a paginated list of resources based on optional search criteria and filtering expression.
+     * Retrieves a paginated list of resources based on optional search criteria
+     * and filtering expression.
      *
      * @param search     optional text-based search (may be {@code null})
      * @param query      additional filtering expression, may be {@code null}
@@ -27,16 +49,51 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param sort       sorting configuration, or {@code null} for unsorted results
      * @return a {@link Page} containing the paginated result set
      */
-    Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort);
+    default Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort) {
+        return page(search, query, pagination, sort, CrudOptions.DEFAULT);
+    }
+
+    /**
+     * Retrieves a paginated list of resources with additional execution options.
+     *
+     * @param search     optional text-based search
+     * @param query      additional filtering expression
+     * @param pagination pagination settings
+     * @param sort       sorting configuration
+     * @param options    execution modifiers that may alter fetching,
+     *                   filtering or performance behavior
+     * @return a {@link Page} containing the paginated result set
+     */
+    Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort, CrudOptions options);
+
+    // ==================================================
+    // FIND
+    // ==================================================
 
     /**
      * Finds a resource by its identifier.
      *
      * @param id unique identifier of the resource
      * @return the resource mapped to its output representation
-     * @throws NotFoundEntityException if no resource exists with the given identifier
+     * @throws NotFoundException if no resource exists with the given identifier
      */
-    OUTPUT find(@NotNull ID id) throws NotFoundEntityException;
+    default OUTPUT find(@NotNull ID id) throws NotFoundException {
+        return find(id, CrudOptions.DEFAULT);
+    }
+
+    /**
+     * Finds a resource by its identifier with execution options.
+     *
+     * @param id      unique identifier of the resource
+     * @param options execution modifiers (e.g. include relations, lock mode, etc.)
+     * @return the resource mapped to its output representation
+     * @throws NotFoundException if no resource exists with the given identifier
+     */
+    OUTPUT find(@NotNull ID id, CrudOptions options) throws NotFoundException;
+
+    // ==================================================
+    // COUNT
+    // ==================================================
 
     /**
      * Counts the number of resources matching optional search and query filters.
@@ -45,7 +102,23 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param query  optional additional query expression (may be {@code null})
      * @return total number of resources matching the criteria
      */
-    long count(String search, String query);
+    default long count(String search, String query) {
+        return count(search, query, CrudOptions.DEFAULT);
+    }
+
+    /**
+     * Counts resources using additional execution options.
+     *
+     * @param search  optional search filter
+     * @param query   optional query expression
+     * @param options execution modifiers
+     * @return total number of resources matching the criteria
+     */
+    long count(String search, String query, CrudOptions options);
+
+    // ==================================================
+    // EXISTS
+    // ==================================================
 
     /**
      * Checks whether a resource with the given identifier exists.
@@ -53,7 +126,22 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param id unique identifier of the resource
      * @return {@code true} if the resource exists, otherwise {@code false}
      */
-    boolean exists(@NotNull ID id);
+    default boolean exists(@NotNull ID id) {
+        return exists(id, CrudOptions.DEFAULT);
+    }
+
+    /**
+     * Checks existence with execution modifiers.
+     *
+     * @param id      unique identifier
+     * @param options execution modifiers
+     * @return {@code true} if the resource exists
+     */
+    boolean exists(@NotNull ID id, CrudOptions options);
+
+    // ==================================================
+    // CREATE
+    // ==================================================
 
     /**
      * Creates a new resource using the provided input DTO.
@@ -61,7 +149,22 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param input input DTO containing creation data
      * @return the newly created resource mapped to its output representation
      */
-    OUTPUT create(@NotNull @Valid INPUT input);
+    default OUTPUT create(@NotNull @Valid INPUT input) {
+        return create(input, CrudOptions.DEFAULT);
+    }
+
+    /**
+     * Creates a new resource with execution modifiers.
+     *
+     * @param input   input DTO containing creation data
+     * @param options execution modifiers (e.g. skip validation, audit flags)
+     * @return the newly created resource
+     */
+    OUTPUT create(@NotNull @Valid INPUT input, CrudOptions options);
+
+    // ==================================================
+    // UPDATE
+    // ==================================================
 
     /**
      * Updates an existing resource identified by the given ID.
@@ -69,15 +172,43 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param id    unique identifier of the resource to update
      * @param input input DTO containing updated data
      * @return the updated resource mapped to its output representation
-     * @throws NotFoundEntityException if no resource exists with the given ID
+     * @throws NotFoundException if no resource exists with the given ID
      */
-    OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundEntityException;
+    default OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException {
+        return update(id, input, CrudOptions.DEFAULT);
+    }
+
+    /**
+     * Updates a resource using execution modifiers.
+     *
+     * @param id      unique identifier
+     * @param input   updated data
+     * @param options execution modifiers
+     * @return updated resource
+     * @throws NotFoundException if resource does not exist
+     */
+    OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input, CrudOptions options) throws NotFoundException;
+
+    // ==================================================
+    // DELETE
+    // ==================================================
 
     /**
      * Deletes the resource identified by the given ID.
      *
      * @param id unique identifier of the resource to delete
-     * @throws NotFoundEntityException if the resource does not exist
+     * @throws NotFoundException if the resource does not exist
      */
-    void delete(@NotNull ID id) throws NotFoundEntityException;
+    default void delete(@NotNull ID id) throws NotFoundException {
+        delete(id, CrudOptions.DEFAULT);
+    }
+
+    /**
+     * Deletes the resource using execution modifiers.
+     *
+     * @param id      unique identifier
+     * @param options execution modifiers (e.g. soft delete, cascade control)
+     * @throws NotFoundException if the resource does not exist
+     */
+    void delete(@NotNull ID id, CrudOptions options) throws NotFoundException;
 }

@@ -1,5 +1,6 @@
 package com.peluware.freddy.cruder.springframework;
 
+import com.peluware.freddy.cruder.CrudOptions;
 import com.peluware.freddy.cruder.CrudProvider;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;
@@ -29,7 +30,7 @@ public interface SpringCrudProvider<ID, INPUT, OUTPUT> extends CrudProvider<ID, 
      * @param pageable Spring pagination and sorting abstraction (must not be {@code null})
      * @return a Spring {@link Page} containing results
      */
-    default Page<OUTPUT> page(String search, String query, @NotNull Pageable pageable) {
-        return SpringDataAdapters.toSpringDataCall(this, search, query, pageable);
+    default Page<OUTPUT> page(String search, String query, @NotNull Pageable pageable, CrudOptions options) {
+        return SpringDataAdapters.toSpringDataCall(this, search, query, pageable, options);
     }
 }

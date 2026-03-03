@@ -21,7 +21,7 @@ import java.util.function.Supplier;
  *
  * <ul>
  *   <li>Standardized CRUD operations defined by {@link CrudProvider}</li>
- *   <li>Entity/DTO mapping hooks via {@link #mapInput(INPUT, ENTITY, boolean)} and {@link #mapOutput(ENTITY)}</li>
+ *   <li>Entity/DTO mapping hooks via {@link #mapInput(INPUT, ENTITY, boolean, CrudOptions)} and {@link #mapOutput(ENTITY, CrudOptions)}</li>
  *   <li>Automatic invocation of CRUD lifecycle event callbacks via {@link CrudEvents}</li>
  *   <li>Pre- and post-operation hooks for cross-cutting concerns</li>
  *   <li>Optional transaction wrapping through {@link #withTransaction(Supplier)}</li>
@@ -30,7 +30,7 @@ import java.util.function.Supplier;
  * <p>
  * Concrete implementations must supply the underlying persistence logic (e.g., JPA, JDBC,
  * MongoDB, in-memory storage) by implementing the {@code internal*} methods such as
- * {@link #internalFind(Object)}, {@link #internalCreate(Object)}, and others.
+ * {@link #internalFind(ID, CrudOptions)}, {@link #internalCreate(ENTITY, CrudOptions)}, and others.
  * </p>
  *
  * <p>
@@ -73,17 +73,17 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * </p>
      */
     @Override
-    public Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort) {
+    public Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort, CrudOptions options) {
         preProcess(CrudOperation.PAGE);
 
         var normalized = StringUtils.normalize(search);
-        var page = resolvePage(normalized, pagination, sort, query);
+        var page = resolvePage(normalized, pagination, sort, query, options);
 
         events.onPage(page);
         page.getContent().forEach(events::eachEntity);
 
         postProcess(CrudOperation.PAGE);
-        return page.map(this::mapOutput);
+        return page.map(entity -> mapOutput(entity, options));
     }
 
     /**
@@ -95,16 +95,16 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * </p>
      */
     @Override
-    public OUTPUT find(@NotNull ID id) throws NotFoundEntityException {
+    public OUTPUT find(@NotNull ID id, CrudOptions options) throws NotFoundEntityException {
         preProcess(CrudOperation.FIND);
 
-        var entity = internalFind(id);
+        var entity = internalFind(id, options);
 
         events.onFind(entity);
         events.eachEntity(entity);
 
         postProcess(CrudOperation.FIND);
-        return mapOutput(entity);
+        return mapOutput(entity, options);
     }
 
     /**
@@ -116,11 +116,11 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * </p>
      */
     @Override
-    public long count(String search, String query) {
+    public long count(String search, String query, CrudOptions options) {
         preProcess(CrudOperation.COUNT);
 
         var normalized = StringUtils.normalize(search);
-        var count = resolveCount(normalized, query);
+        var count = resolveCount(normalized, query, options);
 
         events.onCount(count);
 
@@ -132,15 +132,15 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * {@inheritDoc}
      *
      * <p>
-     * This implementation delegates to {@link #internalExists(Object)}, triggers lifecycle
+     * This implementation delegates to {@link #internalExists(ID, CrudOptions)}, triggers lifecycle
      * events, and returns whether the entity exists.
      * </p>
      */
     @Override
-    public boolean exists(@NotNull ID id) {
+    public boolean exists(@NotNull ID id, CrudOptions options) {
         preProcess(CrudOperation.EXISTS);
 
-        var exists = internalExists(id);
+        var exists = internalExists(id, options);
 
         events.onExists(exists, id);
 
@@ -155,30 +155,30 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * This implementation performs the full creation workflow:
      * </p>
      * <ol>
-     *   <li>Creates a new empty entity instance via {@link #newEntity()}</li>
+     *   <li>Creates a new empty entity instance via {@link #newEntity(CrudOptions)}</li>
      *   <li>Maps input DTO fields into the entity</li>
      *   <li>Applies "before create" lifecycle events</li>
-     *   <li>Delegates persistence to {@link #internalCreate(Object)}</li>
+     *   <li>Delegates persistence to {@link #internalCreate(INPUT, CrudOptions)}</li>
      *   <li>Applies "after create" lifecycle events</li>
      *   <li>Maps entity to output DTO</li>
      * </ol>
      */
     @Override
-    public OUTPUT create(@NotNull @Valid INPUT input) {
+    public OUTPUT create(@NotNull @Valid INPUT input, CrudOptions options) {
         preProcess(CrudOperation.CREATE);
 
         var result = withTransaction(() -> {
-            var entity = newEntity();
+            var entity = newEntity(options);
 
-            mapInput(input, entity, true);
+            mapInput(input, entity, true, options);
             events.onBeforeCreate(input, entity);
 
-            var created = internalCreate(entity);
+            var created = internalCreate(entity, options);
 
             events.onAfterCreate(input, created);
             events.eachEntity(created);
 
-            return mapOutput(created);
+            return mapOutput(created, options);
         });
 
         postProcess(CrudOperation.CREATE);
@@ -195,26 +195,26 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      *   <li>Loads the existing entity</li>
      *   <li>Maps updated DTO fields</li>
      *   <li>Triggers lifecycle events</li>
-     *   <li>Delegates to {@link #internalUpdate(Object)}</li>
+     *   <li>Delegates to {@link #internalUpdate(INPUT, CrudOptions)}</li>
      *   <li>Maps updated entity to output DTO</li>
      * </ol>
      */
     @Override
-    public OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundEntityException {
+    public OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input, CrudOptions options) throws NotFoundEntityException {
         preProcess(CrudOperation.UPDATE);
 
         var result = withTransaction(() -> {
-            var entity = internalFind(id);
+            var entity = internalFind(id, options);
 
-            mapInput(input, entity, false);
+            mapInput(input, entity, false, options);
             events.onBeforeUpdate(input, entity);
 
-            var updated = internalUpdate(entity);
+            var updated = internalUpdate(entity, options);
 
             events.onAfterUpdate(input, updated);
             events.eachEntity(updated);
 
-            return mapOutput(updated);
+            return mapOutput(updated, options);
         });
 
         postProcess(CrudOperation.UPDATE);
@@ -230,20 +230,20 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * <ol>
      *   <li>Finds the entity</li>
      *   <li>Triggers "before delete" event</li>
-     *   <li>Delegates deletion to {@link #internalDelete(Object)}</li>
+     *   <li>Delegates deletion to {@link #internalDelete(ID, CrudOptions)}</li>
      *   <li>Triggers "after delete" event</li>
      * </ol>
      */
     @Override
-    public void delete(@NotNull ID id) throws NotFoundEntityException {
+    public void delete(@NotNull ID id, CrudOptions options) throws NotFoundEntityException {
         preProcess(CrudOperation.DELETE);
 
         withTransaction(() -> {
-            var entity = internalFind(id);
+            var entity = internalFind(id, options);
 
             events.onBeforeDelete(entity);
 
-            internalDelete(entity);
+            internalDelete(entity, options);
 
             events.onAfterDelete(entity);
             return null;
@@ -263,7 +263,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * @param entity the entity to populate
      * @param isNew  whether this is a creation (true) or update (false)
      */
-    protected abstract void mapInput(INPUT input, ENTITY entity, boolean isNew);
+    protected abstract void mapInput(INPUT input, ENTITY entity, boolean isNew, CrudOptions options);
 
     /**
      * Converts an entity into its output DTO representation.
@@ -271,25 +271,25 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * @param entity the entity to convert
      * @return the mapped output DTO
      */
-    protected abstract OUTPUT mapOutput(ENTITY entity);
+    protected abstract OUTPUT mapOutput(ENTITY entity, CrudOptions options);
 
     // ------------------------------------------------------------
     // ABSTRACT PERSISTENCE CONTRACTS
     // ------------------------------------------------------------
 
-    protected abstract ENTITY internalFind(ID id) throws NotFoundEntityException;
+    protected abstract ENTITY internalFind(ID id, CrudOptions options) throws NotFoundEntityException;
 
-    protected abstract Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort);
+    protected abstract Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort, CrudOptions options);
 
-    protected abstract long internalCount(String search, String query);
+    protected abstract long internalCount(String search, String query, CrudOptions options);
 
-    protected abstract boolean internalExists(ID id);
+    protected abstract boolean internalExists(ID id, CrudOptions options);
 
-    protected abstract ENTITY internalCreate(ENTITY entity);
+    protected abstract ENTITY internalCreate(ENTITY entity, CrudOptions options);
 
-    protected abstract ENTITY internalUpdate(ENTITY entity);
+    protected abstract ENTITY internalUpdate(ENTITY entity, CrudOptions options);
 
-    protected abstract void internalDelete(ENTITY entity);
+    protected abstract void internalDelete(ENTITY entity, CrudOptions options);
 
     // ------------------------------------------------------------
     // EXTENSION HOOKS
@@ -331,7 +331,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      *
      * @return a new entity instance
      */
-    protected ENTITY newEntity() {
+    protected ENTITY newEntity(CrudOptions options) {
         try {
             return entityClass.getConstructor().newInstance();
         } catch (Exception e) {
@@ -375,15 +375,15 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
         return query;
     }
 
-    private Page<ENTITY> resolvePage(String search, Pagination pagination, Sort sort, String query) {
+    private Page<ENTITY> resolvePage(String search, Pagination pagination, Sort sort, String query, CrudOptions options) {
         if (pagination == null) pagination = Pagination.unpaginated();
         if (sort == null) sort = Sort.unsorted();
         var newQuery = applyQueryPolicies(query);
-        return internalPage(search, newQuery, pagination, sort);
+        return internalPage(search, newQuery, pagination, sort, options);
     }
 
-    private long resolveCount(String search, String query) {
+    private long resolveCount(String search, String query, CrudOptions options) {
         var newQuery = applyQueryPolicies(query);
-        return internalCount(search, newQuery);
+        return internalCount(search, newQuery, options);
     }
 }

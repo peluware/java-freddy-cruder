@@ -1,22 +1,16 @@
 package com.peluware.freddy.cruder;
 
 
-public class NotFoundEntityException extends RuntimeException {
+public class NotFoundEntityException extends NotFoundException {
     private final Class<?> entityClass;
-    private final transient Object id;
 
     public NotFoundEntityException(Class<?> entityClass, Object id) {
+        super(id);
         this.entityClass = entityClass;
-        this.id = id;
     }
 
     public Class<?> getEntityClass() {
         return entityClass;
     }
-
-    public Object getId() {
-        return id;
-    }
-
 
 }

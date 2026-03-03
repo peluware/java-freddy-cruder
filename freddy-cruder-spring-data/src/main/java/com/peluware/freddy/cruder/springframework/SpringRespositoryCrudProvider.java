@@ -3,8 +3,10 @@ package com.peluware.freddy.cruder.springframework;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
+import com.peluware.freddy.cruder.CrudOptions;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.omnisearch.EntityOmniSearch;
+import com.peluware.omnisearch.OmniSearch;
 import com.peluware.omnisearch.OmniSearchOptions;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.repository.CrudRepository;
@@ -20,18 +22,24 @@ public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> e
         this.entityOmniSearch = entityOmniSearch;
     }
 
+    public SpringRespositoryCrudProvider(CrudRepository<@NonNull ENTITY, @NonNull ID> repository, OmniSearch omniSearch, Class<ENTITY> entityClass) {
+        super(entityClass);
+        this.repository = repository;
+        this.entityOmniSearch = omniSearch.forEntity(entityClass);
+    }
+
     public SpringRespositoryCrudProvider(CrudSearchRepository<@NonNull ENTITY, @NonNull ID> repository, Class<ENTITY> entityClass) {
         this(repository, repository, entityClass);
     }
 
     @Override
-    protected ENTITY internalFind(ID id) throws NotFoundEntityException {
+    protected ENTITY internalFind(ID id, CrudOptions options) throws NotFoundEntityException {
         return repository.findById(id)
                 .orElseThrow(() -> new NotFoundEntityException(entityClass, "Entity not found with id: " + id));
     }
 
     @Override
-    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort) {
+    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort, CrudOptions options) {
         return entityOmniSearch.page(new OmniSearchOptions()
                 .search(search)
                 .query(query)
@@ -41,7 +49,7 @@ public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> e
     }
 
     @Override
-    protected long internalCount(String search, String query) {
+    protected long internalCount(String search, String query, CrudOptions options) {
         return entityOmniSearch.count(new OmniSearchOptions()
                 .search(search)
                 .query(query)
@@ -49,22 +57,22 @@ public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> e
     }
 
     @Override
-    protected boolean internalExists(ID id) {
+    protected boolean internalExists(ID id, CrudOptions options) {
         return repository.existsById(id);
     }
 
     @Override
-    protected ENTITY internalCreate(ENTITY entity) {
+    protected ENTITY internalCreate(ENTITY entity, CrudOptions options) {
         return repository.save(entity);
     }
 
     @Override
-    protected ENTITY internalUpdate(ENTITY entity) {
+    protected ENTITY internalUpdate(ENTITY entity, CrudOptions options) {
         return repository.save(entity);
     }
 
     @Override
-    protected void internalDelete(ENTITY entity) {
+    protected void internalDelete(ENTITY entity, CrudOptions options) {
         repository.delete(entity);
     }
 }

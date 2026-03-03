@@ -3,6 +3,7 @@ package com.peluware.freddy.cruder.springframework;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.domain.Order;
+import com.peluware.freddy.cruder.CrudOptions;
 import com.peluware.freddy.cruder.CrudProvider;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.domain.Page;
@@ -18,13 +19,14 @@ public final class SpringDataAdapters {
         throw new UnsupportedOperationException("Utility class");
     }
 
-    public static <ID, OUTPUT> Page<@NonNull OUTPUT> toSpringDataCall(CrudProvider<ID, ?, OUTPUT> provider,
-                                                                      String search,
+    public static <ID, OUTPUT> Page<@NonNull OUTPUT> toSpringDataCall(CrudProvider<ID, ?, OUTPUT> provider, String search,
                                                                       String query,
-                                                                      Pageable pageable) {
+                                                                      Pageable pageable,
+                                                                      CrudOptions options
+    ) {
         var pagination = toPagination(pageable);
         var sort = toSort(pageable.getSort());
-        var page = provider.page(search, query, pagination, sort);
+        var page = provider.page(search, query, pagination, sort, options);
         return new PageImpl<>(page.getContent(), pageable, page.getTotalElements());
     }
 

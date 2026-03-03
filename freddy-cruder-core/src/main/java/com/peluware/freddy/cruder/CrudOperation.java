@@ -97,4 +97,26 @@ public enum CrudOperation {
     public boolean isWriteOnly() {
         return write && !read;
     }
+
+    /**
+     * Checks if the operation is a read operation.
+     * <br>
+     * An operation is considered a read operation if it involves reading, regardless of whether it also involves writing.
+     *
+     * @return {@code true} if the operation is a read operation, {@code false} otherwise.
+     */
+    public boolean isRead() {
+        return read;
+    }
+
+    /**
+     * Checks if the operation is a write operation.
+     * <br>
+     * An operation is considered a write operation if it involves writing, regardless of whether it also involves reading.
+     *
+     * @return {@code true} if the operation is a write operation, {@code false} otherwise.
+     */
+    public boolean isWrite() {
+        return write;
+    }
 }
