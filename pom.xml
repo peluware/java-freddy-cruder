@@ -6,7 +6,7 @@
 
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder</artifactId>
-    <version>1.2.1</version>
+    <version>1.2.3</version>
     <packaging>pom</packaging>
     <name>Freddy Cruder</name>
     <description>
@@ -47,7 +47,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <encoding.default>UTF-8</encoding.default>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <com.peluware.omnisearch.version>2.2.0</com.peluware.omnisearch.version>
+        <com.peluware.omnisearch.version>2.2.2</com.peluware.omnisearch.version>
     </properties>
 
     <dependencyManagement>
