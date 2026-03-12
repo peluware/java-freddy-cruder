@@ -3,7 +3,6 @@ package com.peluware.freddy.cruder.jpa;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
-import com.peluware.freddy.cruder.CrudOptions;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.omnisearch.OmniSearch;
@@ -64,7 +63,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Finds an entity by its identifier or throws {@link NotFoundEntityException} if not found.
      */
     @Override
-    protected ENTITY internalFind(ID id, CrudOptions options) throws NotFoundEntityException {
+    protected ENTITY internalFind(ID id) throws NotFoundEntityException {
         return Optional.ofNullable(entityManager.find(entityClass, id))
                 .orElseThrow(() -> new NotFoundEntityException(entityClass, id));
     }
@@ -74,7 +73,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Searches entities using a search string and RSQL query with pagination and sorting.
      */
     @Override
-    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort, CrudOptions options) {
+    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort) {
         return omniSearch.page(entityClass, new OmniSearchOptions()
                 .search(search)
                 .pagination(pagination)
@@ -86,7 +85,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Counts entities matching search string and RSQL query.
      */
     @Override
-    protected long internalCount(String search, String query, CrudOptions options) {
+    protected long internalCount(String search, String query) {
         return omniSearch.count(entityClass, new OmniSearchOptions()
                 .search(search)
                 .query(query));
@@ -96,7 +95,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Checks if an entity exists by its identifier.
      */
     @Override
-    protected boolean internalExists(ID id, CrudOptions options) {
+    protected boolean internalExists(ID id) {
         var cb = entityManager.getCriteriaBuilder();
         var cq = cb.createQuery(Long.class);
         var root = cq.from(entityClass);
@@ -110,7 +109,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Persists a new entity.
      */
     @Override
-    protected ENTITY internalCreate(ENTITY entity, CrudOptions options) {
+    protected ENTITY internalCreate(ENTITY entity) {
         entityManager.persist(entity);
         return entity;
     }
@@ -119,7 +118,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Updates an existing entity.
      */
     @Override
-    protected ENTITY internalUpdate(ENTITY entity, CrudOptions options) {
+    protected ENTITY internalUpdate(ENTITY entity) {
         return entityManager.merge(entity);
     }
 
@@ -127,7 +126,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Deletes an entity.
      */
     @Override
-    protected void internalDelete(ENTITY entity, CrudOptions options) {
+    protected void internalDelete(ENTITY entity) {
         entityManager.remove(entity);
     }
 

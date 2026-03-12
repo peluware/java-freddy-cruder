@@ -1,5 +1,6 @@
 package com.peluware.freddy.cruder.springframework.web;
 
+import com.peluware.freddy.cruder.CrudContext;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
 import com.peluware.freddy.cruder.springframework.SpringOwnedCrudProvider;
 import org.jspecify.annotations.NonNull;
@@ -16,18 +17,16 @@ public interface OwnedCountController<OWNER_ID> {
 
     @GetMapping("/count")
     default ResponseEntity<@NonNull Long> count(
-            @PathVariable OWNER_ID ownerId,
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String query,
+            @PathVariable("ownerId") OWNER_ID ownerId,
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "query", required = false) String query,
             @RequestParam MultiValueMap<String, String> parameters
     ) {
         var filtered = new LinkedMultiValueMap<>(parameters);
-
         filtered.remove("search");
         filtered.remove("query");
-
         var options = SpringCrudOptions.of(filtered);
 
-        return ResponseEntity.ok(getService().count(ownerId, search, query, options));
+        return ResponseEntity.ok(CrudContext.call(options, () -> getService().count(ownerId, search, query)));
     }
 }

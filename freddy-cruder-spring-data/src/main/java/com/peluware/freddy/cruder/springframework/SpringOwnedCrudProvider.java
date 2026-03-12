@@ -1,6 +1,5 @@
 package com.peluware.freddy.cruder.springframework;
 
-import com.peluware.freddy.cruder.CrudOptions;
 import com.peluware.freddy.cruder.OwnedCrudProvider;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;
@@ -30,11 +29,10 @@ public interface SpringOwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> extends Ow
      * @param search   optional text-based search (may be {@code null})
      * @param query    optional additional filtering expression (may be {@code null})
      * @param pageable Spring pagination and sorting abstraction (must not be {@code null})
-     * @param options  execution modifiers
      * @return a Spring {@link Page} containing results scoped to the owner
      * @throws com.peluware.freddy.cruder.NotFoundException if the owner does not exist
      */
-    default Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, @NotNull Pageable pageable, CrudOptions options) {
-        return SpringDataAdapters.toSpringOwnedDataCall(this, ownerId, search, query, pageable, options);
+    default Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, @NotNull Pageable pageable) {
+        return SpringDataAdapters.page(this, ownerId, search, query, pageable);
     }
 }

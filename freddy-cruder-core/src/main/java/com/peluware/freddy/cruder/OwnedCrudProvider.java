@@ -54,25 +54,7 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @return a {@link Page} containing the paginated result set
      * @throws NotFoundException if the owner does not exist
      */
-    default Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort) throws NotFoundException {
-        return page(ownerId, search, query, pagination, sort, CrudOptions.DEFAULT);
-    }
-
-    /**
-     * Retrieves a paginated list of resources belonging to the given owner,
-     * with additional execution options.
-     *
-     * @param ownerId    unique identifier of the owning resource
-     * @param search     optional text-based search
-     * @param query      additional filtering expression
-     * @param pagination pagination settings
-     * @param sort       sorting configuration
-     * @param options    execution modifiers that may alter fetching,
-     *                   filtering or performance behavior
-     * @return a {@link Page} containing the paginated result set
-     * @throws NotFoundException if the owner does not exist
-     */
-    Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort, CrudOptions options) throws NotFoundException;
+    Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort);
 
     // ==================================================
     // FIND
@@ -87,21 +69,7 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @throws NotFoundException if the owner or the resource does not exist,
      *                           or if the resource does not belong to the owner
      */
-    default OUTPUT find(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundException {
-        return find(ownerId, id, CrudOptions.DEFAULT);
-    }
-
-    /**
-     * Finds a resource within the owner's scope, with execution options.
-     *
-     * @param ownerId unique identifier of the owning resource
-     * @param id      unique identifier of the resource
-     * @param options execution modifiers (e.g. include relations, lock mode, etc.)
-     * @return the resource mapped to its output representation
-     * @throws NotFoundException if the owner or the resource does not exist,
-     *                           or if the resource does not belong to the owner
-     */
-    OUTPUT find(@NotNull OWNER_ID ownerId, @NotNull ID id, CrudOptions options) throws NotFoundException;
+    OUTPUT find(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundException;
 
     // ==================================================
     // COUNT
@@ -116,21 +84,8 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @return total number of resources matching the criteria
      * @throws NotFoundException if the owner does not exist
      */
-    default long count(@NotNull OWNER_ID ownerId, String search, String query) throws NotFoundException {
-        return count(ownerId, search, query, CrudOptions.DEFAULT);
-    }
+    long count(@NotNull OWNER_ID ownerId, String search, String query) throws NotFoundException;
 
-    /**
-     * Counts resources within the owner's scope using additional execution options.
-     *
-     * @param ownerId unique identifier of the owning resource
-     * @param search  optional search filter
-     * @param query   optional query expression
-     * @param options execution modifiers
-     * @return total number of resources matching the criteria
-     * @throws NotFoundException if the owner does not exist
-     */
-    long count(@NotNull OWNER_ID ownerId, String search, String query, CrudOptions options) throws NotFoundException;
 
     // ==================================================
     // EXISTS
@@ -145,19 +100,7 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @return {@code true} if the resource exists and belongs to the owner,
      * otherwise {@code false}
      */
-    default boolean exists(@NotNull OWNER_ID ownerId, @NotNull ID id) {
-        return exists(ownerId, id, CrudOptions.DEFAULT);
-    }
-
-    /**
-     * Checks existence within the owner's scope with execution modifiers.
-     *
-     * @param ownerId unique identifier of the owning resource
-     * @param id      unique identifier of the resource
-     * @param options execution modifiers
-     * @return {@code true} if the resource exists and belongs to the owner
-     */
-    boolean exists(@NotNull OWNER_ID ownerId, @NotNull ID id, CrudOptions options);
+    boolean exists(@NotNull OWNER_ID ownerId, @NotNull ID id);
 
     // ==================================================
     // CREATE
@@ -171,20 +114,7 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @return the newly created resource mapped to its output representation
      * @throws NotFoundException if the owner does not exist
      */
-    default OUTPUT create(@NotNull OWNER_ID ownerId, @NotNull @Valid INPUT input) throws NotFoundException {
-        return create(ownerId, input, CrudOptions.DEFAULT);
-    }
-
-    /**
-     * Creates a new resource under the given owner with execution modifiers.
-     *
-     * @param ownerId unique identifier of the owning resource
-     * @param input   input DTO containing creation data
-     * @param options execution modifiers (e.g. skip validation, audit flags)
-     * @return the newly created resource
-     * @throws NotFoundException if the owner does not exist
-     */
-    OUTPUT create(@NotNull OWNER_ID ownerId, @NotNull @Valid INPUT input, CrudOptions options) throws NotFoundException;
+    OUTPUT create(@NotNull OWNER_ID ownerId, @NotNull @Valid INPUT input) throws NotFoundException;
 
     // ==================================================
     // UPDATE
@@ -200,22 +130,8 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @throws NotFoundException if the owner or the resource does not exist,
      *                           or if the resource does not belong to the owner
      */
-    default OUTPUT update(@NotNull OWNER_ID ownerId, @NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException {
-        return update(ownerId, id, input, CrudOptions.DEFAULT);
-    }
+    OUTPUT update(@NotNull OWNER_ID ownerId, @NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException;
 
-    /**
-     * Updates a resource within the owner's scope using execution modifiers.
-     *
-     * @param ownerId unique identifier of the owning resource
-     * @param id      unique identifier of the resource
-     * @param input   updated data
-     * @param options execution modifiers
-     * @return updated resource
-     * @throws NotFoundException if the owner or resource does not exist,
-     *                           or if the resource does not belong to the owner
-     */
-    OUTPUT update(@NotNull OWNER_ID ownerId, @NotNull ID id, @NotNull @Valid INPUT input, CrudOptions options) throws NotFoundException;
 
     // ==================================================
     // DELETE
@@ -229,18 +145,5 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @throws NotFoundException if the owner or the resource does not exist,
      *                           or if the resource does not belong to the owner
      */
-    default void delete(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundException {
-        delete(ownerId, id, CrudOptions.DEFAULT);
-    }
-
-    /**
-     * Deletes a resource within the owner's scope using execution modifiers.
-     *
-     * @param ownerId unique identifier of the owning resource
-     * @param id      unique identifier of the resource
-     * @param options execution modifiers (e.g. soft delete, cascade control)
-     * @throws NotFoundException if the owner or resource does not exist,
-     *                           or if the resource does not belong to the owner
-     */
-    void delete(@NotNull OWNER_ID ownerId, @NotNull ID id, CrudOptions options) throws NotFoundException;
+    void delete(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundException;
 }

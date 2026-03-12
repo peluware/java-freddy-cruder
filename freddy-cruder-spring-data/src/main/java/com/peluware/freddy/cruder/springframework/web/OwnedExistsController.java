@@ -1,25 +1,24 @@
 package com.peluware.freddy.cruder.springframework.web;
 
+import com.peluware.freddy.cruder.CrudContext;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
 import com.peluware.freddy.cruder.springframework.SpringOwnedCrudProvider;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 public interface OwnedExistsController<OWNER_ID, ID> {
 
     SpringOwnedCrudProvider<OWNER_ID, ID, ?, ?> getService();
 
-    @GetMapping("/{id}/exists")
+    @RequestMapping(value = "/{id}", method = RequestMethod.HEAD)
     default ResponseEntity<@NonNull Boolean> exists(
-            @PathVariable OWNER_ID ownerId,
-            @PathVariable ID id,
+            @PathVariable("ownerId") OWNER_ID ownerId,
+            @PathVariable("id") ID id,
             @RequestParam MultiValueMap<String, String> parameters
     ) {
         var options = SpringCrudOptions.of(parameters);
-        return ResponseEntity.ok(getService().exists(ownerId, id, options));
+        return ResponseEntity.ok(CrudContext.call(options, () -> getService().exists(ownerId, id)));
     }
 }

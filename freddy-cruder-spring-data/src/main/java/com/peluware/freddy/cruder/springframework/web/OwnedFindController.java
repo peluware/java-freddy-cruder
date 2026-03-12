@@ -1,5 +1,6 @@
 package com.peluware.freddy.cruder.springframework.web;
 
+import com.peluware.freddy.cruder.CrudContext;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
 import com.peluware.freddy.cruder.springframework.SpringOwnedCrudProvider;
 import org.jspecify.annotations.NonNull;
@@ -15,11 +16,11 @@ public interface OwnedFindController<OWNER_ID, ID, OUTPUT> {
 
     @GetMapping("/{id}")
     default ResponseEntity<@NonNull OUTPUT> find(
-            @PathVariable OWNER_ID ownerId,
+            @PathVariable("ownerId") OWNER_ID ownerId,
             @PathVariable ID id,
             @RequestParam MultiValueMap<String, String> parameters
     ) {
         var options = SpringCrudOptions.of(parameters);
-        return ResponseEntity.ok(getService().find(ownerId, id, options));
+        return ResponseEntity.ok(CrudContext.call(options, () -> getService().find(ownerId, id)));
     }
 }

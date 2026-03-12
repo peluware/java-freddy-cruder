@@ -3,7 +3,6 @@ package com.peluware.freddy.cruder.springframework;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.domain.Order;
-import com.peluware.freddy.cruder.CrudOptions;
 import com.peluware.freddy.cruder.CrudProvider;
 import com.peluware.freddy.cruder.OwnedCrudProvider;
 import org.jspecify.annotations.NonNull;
@@ -13,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.util.Streamable;
 
 import java.util.List;
+import java.util.function.BiFunction;
 
 public final class SpringDataAdapters {
 
@@ -20,89 +20,51 @@ public final class SpringDataAdapters {
         throw new UnsupportedOperationException("Utility class");
     }
 
-    /**
-     * Bridges a {@link CrudProvider#page} call into a Spring {@link Page}.
-     *
-     * <p>
-     * Converts the Spring {@link Pageable} into {@link Pagination} and {@link Sort},
-     * delegates to the provider, and wraps the result in a {@link PageImpl}.
-     * </p>
-     *
-     * <p>
-     * This method is intended for use within a Spring controller method, allowing
-     * seamless integration of the provider's pagination and sorting capabilities
-     * with Spring's data handling abstractions.
-     * </p>
-     *
-     * @param provider the CRUD provider to delegate to
-     * @param search   optional text-based search (maybe {@code null})
-     * @param query  optional additional filtering expression (maybe {@code null})
-     * @param pageable Spring pagination and sorting abstraction (must not be {@code null})
-     * @param options execution modifiers that may alter fetching, filtering or performance behavior
-     * @param <ID>      type of the resource identifier
-     * @param <OUTPUT> type of the output DTO
-     * @return a Spring {@link Page} containing the paginated result set
-     */
-    public static <ID, OUTPUT> Page<@NonNull OUTPUT> toSpringDataCall(
+    public static <R> R withSpringPageable(Pageable pageable, BiFunction<Pagination, Sort, R> providerCall) {
+        var pagination = toPeluwarePagination(pageable);
+        var sort = toPeluwareSort(pageable.getSort());
+        return providerCall.apply(pagination, sort);
+    }
+
+
+    public static <ID, OUTPUT> Page<@NonNull OUTPUT> page(
             CrudProvider<ID, ?, OUTPUT> provider,
             String search,
             String query,
-            Pageable pageable,
-            CrudOptions options
+            Pageable pageable
     ) {
-        var pagination = toPagination(pageable);
-        var sort = toSort(pageable.getSort());
-        var page = provider.page(search, query, pagination, sort, options);
-        return new PageImpl<>(page.getContent(), pageable, page.getTotalElements());
+        return withSpringPageable(pageable, (pagination, sort) -> {
+            var page = provider.page(search, query, pagination, sort);
+            return new PageImpl<>(page.getContent(), pageable, page.getTotalElements());
+        });
     }
 
-    /**
-     * Bridges a {@link OwnedCrudProvider#page} call into a Spring {@link Page},
-     * scoped to the given owner.
-     *
-     * <p>
-     * Converts the Spring {@link Pageable} into {@link Pagination} and {@link Sort},
-     * delegates to the provider, and wraps the result in a {@link PageImpl}.
-     * </p>
-     *
-     * @param provider   the owned CRUD provider
-     * @param ownerId    unique identifier of the owning resource
-     * @param search     optional text-based search
-     * @param query      optional additional filtering expression
-     * @param pageable   Spring pagination and sorting abstraction
-     * @param options    execution modifiers
-     * @param <OWNER_ID> type of the owner identifier
-     * @param <ID>       type of the resource identifier
-     * @param <OUTPUT>   type of the output DTO
-     * @return a Spring {@link Page} scoped to the owner
-     */
-    public static <OWNER_ID, ID, OUTPUT> Page<@NonNull OUTPUT> toSpringOwnedDataCall(
+    public static <OWNER_ID, ID, OUTPUT> Page<@NonNull OUTPUT> page(
             OwnedCrudProvider<OWNER_ID, ID, ?, OUTPUT> provider,
             OWNER_ID ownerId,
             String search,
             String query,
-            Pageable pageable,
-            CrudOptions options
-    ) throws com.peluware.freddy.cruder.NotFoundException {
-        var pagination = toPagination(pageable);
-        var sort = toSort(pageable.getSort());
-        var page = provider.page(ownerId, search, query, pagination, sort, options);
-        return new PageImpl<>(page.getContent(), pageable, page.getTotalElements());
+            Pageable pageable
+    ) {
+        return withSpringPageable(pageable, (pagination, sort) -> {
+            var page = provider.page(ownerId, search, query, pagination, sort);
+            return new PageImpl<>(page.getContent(), pageable, page.getTotalElements());
+        });
     }
 
-    public static Pagination toPagination(Pageable pageable) {
+    public static Pagination toPeluwarePagination(Pageable pageable) {
         return pageable.isUnpaged()
                 ? Pagination.unpaginated()
                 : Pagination.of(pageable.getPageNumber(), pageable.getPageSize());
     }
 
-    public static Sort toSort(org.springframework.data.domain.Sort sort) {
+    public static Sort toPeluwareSort(org.springframework.data.domain.Sort sort) {
         return sort.isUnsorted()
                 ? Sort.unsorted()
-                : new Sort(toOrders(sort));
+                : new Sort(toPeluwareOrders(sort));
     }
 
-    private static List<Order> toOrders(Streamable<org.springframework.data.domain.Sort.Order> sort) {
+    public static List<Order> toPeluwareOrders(Streamable<org.springframework.data.domain.Sort.Order> sort) {
         return sort.stream()
                 .map(order -> new Order(
                         order.getProperty(),
@@ -110,5 +72,33 @@ public final class SpringDataAdapters {
                                 ? Order.Direction.ASC
                                 : Order.Direction.DESC))
                 .toList();
+    }
+
+    public static org.springframework.data.domain.Sort toSpringSort(Sort sort) {
+        if (!sort.isSorted()) {
+            return org.springframework.data.domain.Sort.unsorted();
+        }
+        var orders = sort.orders().stream()
+                .map(order -> new org.springframework.data.domain.Sort.Order(
+                        order.direction() == Order.Direction.ASC
+                                ? org.springframework.data.domain.Sort.Direction.ASC
+                                : org.springframework.data.domain.Sort.Direction.DESC,
+                        order.property()))
+                .toList();
+        return org.springframework.data.domain.Sort.by(orders);
+    }
+
+    public static Pageable toSpringPageable(Pagination pagination, Sort sort) {
+
+        if (!pagination.isPaginated()) {
+            return Pageable.unpaged();
+        }
+
+        var springSort = toSpringSort(sort);
+        return org.springframework.data.domain.PageRequest.of(
+                pagination.getNumber(),
+                pagination.getSize(),
+                springSort
+        );
     }
 }

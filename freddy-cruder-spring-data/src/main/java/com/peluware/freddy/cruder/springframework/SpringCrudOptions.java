@@ -11,7 +11,7 @@ public final class SpringCrudOptions implements CrudOptions {
     private final MultiValueMap<String, String> parameters;
 
     public SpringCrudOptions(MultiValueMap<String, String> parameters) {
-        this.parameters = Objects.requireNonNull(parameters);
+        this.parameters = Objects.requireNonNull(parameters, "Parameters map cannot be null");
     }
 
     public static CrudOptions of(MultiValueMap<String, String> parameters) {

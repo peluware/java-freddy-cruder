@@ -1,5 +1,6 @@
 package com.peluware.freddy.cruder.springframework.web;
 
+import com.peluware.freddy.cruder.CrudContext;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
 import com.peluware.freddy.cruder.springframework.SpringOwnedCrudProvider;
 import org.jspecify.annotations.NonNull;
@@ -13,12 +14,12 @@ public interface OwnedUpdateController<OWNER_ID, ID, INPUT, OUTPUT> {
 
     @PutMapping("/{id}")
     default ResponseEntity<@NonNull OUTPUT> update(
-            @PathVariable OWNER_ID ownerId,
-            @PathVariable ID id,
+            @PathVariable("ownerId") OWNER_ID ownerId,
+            @PathVariable("id") ID id,
             @RequestBody INPUT input,
             @RequestParam MultiValueMap<String, String> parameters
     ) {
         var options = SpringCrudOptions.of(parameters);
-        return ResponseEntity.ok(getService().update(ownerId, id, input, options));
+        return ResponseEntity.ok(CrudContext.call(options, () -> getService().update(ownerId, id, input)));
     }
 }

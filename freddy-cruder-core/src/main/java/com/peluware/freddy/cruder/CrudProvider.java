@@ -49,22 +49,7 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param sort       sorting configuration, or {@code null} for unsorted results
      * @return a {@link Page} containing the paginated result set
      */
-    default Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort) {
-        return page(search, query, pagination, sort, CrudOptions.DEFAULT);
-    }
-
-    /**
-     * Retrieves a paginated list of resources with additional execution options.
-     *
-     * @param search     optional text-based search
-     * @param query      additional filtering expression
-     * @param pagination pagination settings
-     * @param sort       sorting configuration
-     * @param options    execution modifiers that may alter fetching,
-     *                   filtering or performance behavior
-     * @return a {@link Page} containing the paginated result set
-     */
-    Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort, CrudOptions options);
+    Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort);
 
     // ==================================================
     // FIND
@@ -77,19 +62,8 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @return the resource mapped to its output representation
      * @throws NotFoundException if no resource exists with the given identifier
      */
-    default OUTPUT find(@NotNull ID id) throws NotFoundException {
-        return find(id, CrudOptions.DEFAULT);
-    }
+    OUTPUT find(@NotNull ID id) throws NotFoundException;
 
-    /**
-     * Finds a resource by its identifier with execution options.
-     *
-     * @param id      unique identifier of the resource
-     * @param options execution modifiers (e.g. include relations, lock mode, etc.)
-     * @return the resource mapped to its output representation
-     * @throws NotFoundException if no resource exists with the given identifier
-     */
-    OUTPUT find(@NotNull ID id, CrudOptions options) throws NotFoundException;
 
     // ==================================================
     // COUNT
@@ -102,19 +76,8 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param query  optional additional query expression (may be {@code null})
      * @return total number of resources matching the criteria
      */
-    default long count(String search, String query) {
-        return count(search, query, CrudOptions.DEFAULT);
-    }
+    long count(String search, String query);
 
-    /**
-     * Counts resources using additional execution options.
-     *
-     * @param search  optional search filter
-     * @param query   optional query expression
-     * @param options execution modifiers
-     * @return total number of resources matching the criteria
-     */
-    long count(String search, String query, CrudOptions options);
 
     // ==================================================
     // EXISTS
@@ -126,18 +89,8 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param id unique identifier of the resource
      * @return {@code true} if the resource exists, otherwise {@code false}
      */
-    default boolean exists(@NotNull ID id) {
-        return exists(id, CrudOptions.DEFAULT);
-    }
+    boolean exists(@NotNull ID id);
 
-    /**
-     * Checks existence with execution modifiers.
-     *
-     * @param id      unique identifier
-     * @param options execution modifiers
-     * @return {@code true} if the resource exists
-     */
-    boolean exists(@NotNull ID id, CrudOptions options);
 
     // ==================================================
     // CREATE
@@ -149,18 +102,8 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param input input DTO containing creation data
      * @return the newly created resource mapped to its output representation
      */
-    default OUTPUT create(@NotNull @Valid INPUT input) {
-        return create(input, CrudOptions.DEFAULT);
-    }
+    OUTPUT create(@NotNull @Valid INPUT input);
 
-    /**
-     * Creates a new resource with execution modifiers.
-     *
-     * @param input   input DTO containing creation data
-     * @param options execution modifiers (e.g. skip validation, audit flags)
-     * @return the newly created resource
-     */
-    OUTPUT create(@NotNull @Valid INPUT input, CrudOptions options);
 
     // ==================================================
     // UPDATE
@@ -174,20 +117,8 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @return the updated resource mapped to its output representation
      * @throws NotFoundException if no resource exists with the given ID
      */
-    default OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException {
-        return update(id, input, CrudOptions.DEFAULT);
-    }
+    OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException;
 
-    /**
-     * Updates a resource using execution modifiers.
-     *
-     * @param id      unique identifier
-     * @param input   updated data
-     * @param options execution modifiers
-     * @return updated resource
-     * @throws NotFoundException if resource does not exist
-     */
-    OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input, CrudOptions options) throws NotFoundException;
 
     // ==================================================
     // DELETE
@@ -199,16 +130,5 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param id unique identifier of the resource to delete
      * @throws NotFoundException if the resource does not exist
      */
-    default void delete(@NotNull ID id) throws NotFoundException {
-        delete(id, CrudOptions.DEFAULT);
-    }
-
-    /**
-     * Deletes the resource using execution modifiers.
-     *
-     * @param id      unique identifier
-     * @param options execution modifiers (e.g. soft delete, cascade control)
-     * @throws NotFoundException if the resource does not exist
-     */
-    void delete(@NotNull ID id, CrudOptions options) throws NotFoundException;
+    void delete(@NotNull ID id) throws NotFoundException;
 }

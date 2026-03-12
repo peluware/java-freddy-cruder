@@ -1,6 +1,7 @@
 package com.peluware.freddy.cruder.springframework.web;
 
 
+import com.peluware.freddy.cruder.CrudContext;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
 import com.peluware.freddy.cruder.springframework.SpringCrudProvider;
 import org.jspecify.annotations.NonNull;
@@ -17,18 +18,15 @@ public interface CountController {
 
     @GetMapping("/count")
     default ResponseEntity<@NonNull Long> count(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String query,
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "query", required = false) String query,
             @RequestParam MultiValueMap<String, String> parameters
     ) {
-
         var filtered = new LinkedMultiValueMap<>(parameters);
-
         filtered.remove("search");
         filtered.remove("query");
-
         var options = SpringCrudOptions.of(filtered);
 
-        return ResponseEntity.ok(getService().count(search, query, options));
+        return ResponseEntity.ok(CrudContext.call(options, () -> getService().count(search, query)));
     }
 }

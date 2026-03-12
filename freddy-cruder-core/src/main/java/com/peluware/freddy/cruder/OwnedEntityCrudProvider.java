@@ -25,7 +25,7 @@ import java.util.function.Supplier;
  *
  * <ul>
  *   <li>Standardized owned CRUD operations defined by {@link OwnedCrudProvider}</li>
- *   <li>Entity/DTO mapping hooks via {@link #mapInput(INPUT, ENTITY, boolean, CrudOptions)} and {@link #mapOutput(ENTITY, CrudOptions)}</li>
+ *   <li>Entity/DTO mapping hooks via {@link #mapInput(OWNER_ID, INPUT, ENTITY, boolean)} and {@link #mapOutput(OWNER_ID, ENTITY)}</li>
  *   <li>Automatic invocation of CRUD lifecycle event callbacks via {@link CrudEvents}</li>
  *   <li>Pre- and post-operation hooks for cross-cutting concerns</li>
  *   <li>Optional transaction wrapping through {@link #withTransaction(Supplier)}</li>
@@ -33,8 +33,8 @@ import java.util.function.Supplier;
  *
  * <p>
  * Concrete implementations must supply the underlying persistence logic by implementing
- * the {@code internal*} methods such as {@link #internalFind(OWNER_ID, ID, CrudOptions)},
- * {@link #internalCreate(OWNER_ID, ENTITY, CrudOptions)}, and others.
+ * the {@code internal*} methods such as {@link #internalFind(OWNER_ID, ID)},
+ * {@link #internalCreate(OWNER_ID, ENTITY)}, and others.
  * </p>
  *
  * @param <ENTITY>   the domain entity type managed by this provider
@@ -71,17 +71,17 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * </p>
      */
     @Override
-    public Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort, CrudOptions options) throws NotFoundException {
+    public Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort) throws NotFoundException {
         preProcess(CrudOperation.PAGE);
 
         var normalized = StringUtils.normalize(search);
-        var page = resolvePage(ownerId, normalized, pagination, sort, query, options);
+        var page = resolvePage(ownerId, normalized, pagination, sort, query);
 
         events.onPage(page);
         page.getContent().forEach(events::eachEntity);
 
         postProcess(CrudOperation.PAGE);
-        return page.map(entity -> mapOutput(entity, options));
+        return page.map(entity -> mapOutput(ownerId, entity));
     }
 
     /**
@@ -93,16 +93,16 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * </p>
      */
     @Override
-    public OUTPUT find(@NotNull OWNER_ID ownerId, @NotNull ID id, CrudOptions options) throws NotFoundException {
+    public OUTPUT find(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundException {
         preProcess(CrudOperation.FIND);
 
-        var entity = internalFind(ownerId, id, options);
+        var entity = internalFind(ownerId, id);
 
         events.onFind(entity);
         events.eachEntity(entity);
 
         postProcess(CrudOperation.FIND);
-        return mapOutput(entity, options);
+        return mapOutput(ownerId, entity);
     }
 
     /**
@@ -114,11 +114,11 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * </p>
      */
     @Override
-    public long count(@NotNull OWNER_ID ownerId, String search, String query, CrudOptions options) throws NotFoundException {
+    public long count(@NotNull OWNER_ID ownerId, String search, String query) throws NotFoundException {
         preProcess(CrudOperation.COUNT);
 
         var normalized = StringUtils.normalize(search);
-        var count = resolveCount(ownerId, normalized, query, options);
+        var count = resolveCount(ownerId, normalized, query);
 
         events.onCount(count);
 
@@ -130,15 +130,15 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * {@inheritDoc}
      *
      * <p>
-     * Delegates to {@link #internalExists(OWNER_ID, ID, CrudOptions)}, triggers lifecycle
+     * Delegates to {@link #internalExists(OWNER_ID, ID)}, triggers lifecycle
      * events, and returns whether the entity exists within the owner's scope.
      * </p>
      */
     @Override
-    public boolean exists(@NotNull OWNER_ID ownerId, @NotNull ID id, CrudOptions options) {
+    public boolean exists(@NotNull OWNER_ID ownerId, @NotNull ID id) {
         preProcess(CrudOperation.EXISTS);
 
-        var exists = internalExists(ownerId, id, options);
+        var exists = internalExists(ownerId, id);
 
         events.onExists(exists, id);
 
@@ -153,30 +153,30 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * Performs the full creation workflow within the owner's scope:
      * </p>
      * <ol>
-     *   <li>Creates a new empty entity instance via {@link #newEntity(CrudOptions)}</li>
+     *   <li>Creates a new empty entity instance via {@link #newEntity()}</li>
      *   <li>Maps input DTO fields into the entity</li>
      *   <li>Applies "before create" lifecycle events</li>
-     *   <li>Delegates persistence to {@link #internalCreate(OWNER_ID, ENTITY, CrudOptions)}</li>
+     *   <li>Delegates persistence to {@link #internalCreate(OWNER_ID, ENTITY)}</li>
      *   <li>Applies "after create" lifecycle events</li>
      *   <li>Maps entity to output DTO</li>
      * </ol>
      */
     @Override
-    public OUTPUT create(@NotNull OWNER_ID ownerId, @NotNull @Valid INPUT input, CrudOptions options) throws NotFoundException {
+    public OUTPUT create(@NotNull OWNER_ID ownerId, @NotNull @Valid INPUT input) throws NotFoundException {
         preProcess(CrudOperation.CREATE);
 
         var result = withTransaction(() -> {
-            var entity = newEntity(options);
+            var entity = newEntity();
 
-            mapInput(input, entity, true, options);
+            mapInput(ownerId, input, entity, true);
             events.onBeforeCreate(input, entity);
 
-            var created = internalCreate(ownerId, entity, options);
+            var created = internalCreate(ownerId, entity);
 
             events.onAfterCreate(input, created);
             events.eachEntity(created);
 
-            return mapOutput(created, options);
+            return mapOutput(ownerId, created);
         });
 
         postProcess(CrudOperation.CREATE);
@@ -193,26 +193,26 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      *   <li>Loads the existing entity scoped to the owner</li>
      *   <li>Maps updated DTO fields</li>
      *   <li>Triggers lifecycle events</li>
-     *   <li>Delegates to {@link #internalUpdate(OWNER_ID, ENTITY, CrudOptions)}</li>
+     *   <li>Delegates to {@link #internalUpdate(OWNER_ID, ENTITY)}</li>
      *   <li>Maps updated entity to output DTO</li>
      * </ol>
      */
     @Override
-    public OUTPUT update(@NotNull OWNER_ID ownerId, @NotNull ID id, @NotNull @Valid INPUT input, CrudOptions options) throws NotFoundException {
+    public OUTPUT update(@NotNull OWNER_ID ownerId, @NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException {
         preProcess(CrudOperation.UPDATE);
 
         var result = withTransaction(() -> {
-            var entity = internalFind(ownerId, id, options);
+            var entity = internalFind(ownerId, id);
 
-            mapInput(input, entity, false, options);
+            mapInput(ownerId, input, entity, false);
             events.onBeforeUpdate(input, entity);
 
-            var updated = internalUpdate(ownerId, entity, options);
+            var updated = internalUpdate(ownerId, entity);
 
             events.onAfterUpdate(input, updated);
             events.eachEntity(updated);
 
-            return mapOutput(updated, options);
+            return mapOutput(ownerId, updated);
         });
 
         postProcess(CrudOperation.UPDATE);
@@ -228,20 +228,20 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * <ol>
      *   <li>Finds the entity scoped to the owner</li>
      *   <li>Triggers "before delete" event</li>
-     *   <li>Delegates deletion to {@link #internalDelete(OWNER_ID, ENTITY, CrudOptions)}</li>
+     *   <li>Delegates deletion to {@link #internalDelete(OWNER_ID, ENTITY)}</li>
      *   <li>Triggers "after delete" event</li>
      * </ol>
      */
     @Override
-    public void delete(@NotNull OWNER_ID ownerId, @NotNull ID id, CrudOptions options) throws NotFoundException {
+    public void delete(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundException {
         preProcess(CrudOperation.DELETE);
 
         withTransaction(() -> {
-            var entity = internalFind(ownerId, id, options);
+            var entity = internalFind(ownerId, id);
 
             events.onBeforeDelete(entity);
 
-            internalDelete(ownerId, entity, options);
+            internalDelete(ownerId, entity);
 
             events.onAfterDelete(entity);
             return null;
@@ -260,18 +260,16 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * @param input   the input DTO
      * @param entity  the entity to populate
      * @param isNew   whether this is a creation (true) or update (false)
-     * @param options execution modifiers
      */
-    protected abstract void mapInput(INPUT input, ENTITY entity, boolean isNew, CrudOptions options);
+    protected abstract void mapInput(OWNER_ID ownerId, INPUT input, ENTITY entity, boolean isNew);
 
     /**
      * Converts an entity into its output DTO representation.
      *
      * @param entity  the entity to convert
-     * @param options execution modifiers
      * @return the mapped output DTO
      */
-    protected abstract OUTPUT mapOutput(ENTITY entity, CrudOptions options);
+    protected abstract OUTPUT mapOutput(OWNER_ID ownerId, ENTITY entity);
 
     // ------------------------------------------------------------
     // ABSTRACT PERSISTENCE CONTRACTS
@@ -287,11 +285,10 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      *
      * @param ownerId the identifier of the owning resource
      * @param id      the identifier of the entity
-     * @param options execution modifiers
      * @return the found entity
      * @throws NotFoundException if no entity matches both identifiers
      */
-    protected abstract ENTITY internalFind(OWNER_ID ownerId, ID id, CrudOptions options) throws NotFoundException;
+    protected abstract ENTITY internalFind(OWNER_ID ownerId, ID id) throws NotFoundException;
 
     /**
      * Retrieves a page of entities belonging to the given owner.
@@ -301,10 +298,9 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * @param query      processed query expression
      * @param pagination pagination settings
      * @param sort       sorting configuration
-     * @param options    execution modifiers
      * @return a page of matching entities
      */
-    protected abstract Page<ENTITY> internalPage(OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort, CrudOptions options);
+    protected abstract Page<ENTITY> internalPage(OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort);
 
     /**
      * Counts entities belonging to the given owner matching optional filters.
@@ -312,49 +308,44 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * @param ownerId the identifier of the owning resource
      * @param search  normalized search string
      * @param query   processed query expression
-     * @param options execution modifiers
      * @return total count of matching entities
      */
-    protected abstract long internalCount(OWNER_ID ownerId, String search, String query, CrudOptions options);
+    protected abstract long internalCount(OWNER_ID ownerId, String search, String query);
 
     /**
      * Checks whether an entity with the given identifier exists within the owner's scope.
      *
      * @param ownerId the identifier of the owning resource
      * @param id      the identifier of the entity
-     * @param options execution modifiers
      * @return {@code true} if the entity exists and belongs to the owner
      */
-    protected abstract boolean internalExists(OWNER_ID ownerId, ID id, CrudOptions options);
+    protected abstract boolean internalExists(OWNER_ID ownerId, ID id);
 
     /**
      * Persists a new entity under the given owner.
      *
      * @param ownerId the identifier of the owning resource
      * @param entity  the entity to persist
-     * @param options execution modifiers
      * @return the persisted entity
      */
-    protected abstract ENTITY internalCreate(OWNER_ID ownerId, ENTITY entity, CrudOptions options);
+    protected abstract ENTITY internalCreate(OWNER_ID ownerId, ENTITY entity);
 
     /**
      * Persists changes to an existing entity within the owner's scope.
      *
      * @param ownerId the identifier of the owning resource
      * @param entity  the entity with updated state
-     * @param options execution modifiers
      * @return the updated entity
      */
-    protected abstract ENTITY internalUpdate(OWNER_ID ownerId, ENTITY entity, CrudOptions options);
+    protected abstract ENTITY internalUpdate(OWNER_ID ownerId, ENTITY entity);
 
     /**
      * Removes an entity within the owner's scope.
      *
      * @param ownerId the identifier of the owning resource
      * @param entity  the entity to remove
-     * @param options execution modifiers
      */
-    protected abstract void internalDelete(OWNER_ID ownerId, ENTITY entity, CrudOptions options);
+    protected abstract void internalDelete(OWNER_ID ownerId, ENTITY entity);
 
     // ------------------------------------------------------------
     // EXTENSION HOOKS
@@ -394,10 +385,9 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * Subclasses may override when entities require factory methods instead of reflection.
      * </p>
      *
-     * @param options execution modifiers
      * @return a new entity instance
      */
-    protected ENTITY newEntity(CrudOptions options) {
+    protected ENTITY newEntity() {
         try {
             return entityClass.getConstructor().newInstance();
         } catch (Exception e) {
@@ -450,15 +440,15 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
     // PRIVATE HELPERS
     // ------------------------------------------------------------
 
-    private Page<ENTITY> resolvePage(OWNER_ID ownerId, String search, Pagination pagination, Sort sort, String query, CrudOptions options) {
+    private Page<ENTITY> resolvePage(OWNER_ID ownerId, String search, Pagination pagination, Sort sort, String query) {
         if (pagination == null) pagination = Pagination.unpaginated();
         if (sort == null) sort = Sort.unsorted();
         var newQuery = applyQueryPolicies(ownerId, query);
-        return internalPage(ownerId, search, newQuery, pagination, sort, options);
+        return internalPage(ownerId, search, newQuery, pagination, sort);
     }
 
-    private long resolveCount(OWNER_ID ownerId, String search, String query, CrudOptions options) {
+    private long resolveCount(OWNER_ID ownerId, String search, String query) {
         var newQuery = applyQueryPolicies(ownerId, query);
-        return internalCount(ownerId, search, newQuery, options);
+        return internalCount(ownerId, search, newQuery);
     }
 }

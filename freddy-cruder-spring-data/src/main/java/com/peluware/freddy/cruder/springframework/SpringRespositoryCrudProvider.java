@@ -3,7 +3,6 @@ package com.peluware.freddy.cruder.springframework;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
-import com.peluware.freddy.cruder.CrudOptions;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.omnisearch.EntityOmniSearch;
 import com.peluware.omnisearch.OmniSearch;
@@ -33,13 +32,13 @@ public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> e
     }
 
     @Override
-    protected ENTITY internalFind(ID id, CrudOptions options) throws NotFoundEntityException {
+    protected ENTITY internalFind(ID id) throws NotFoundEntityException {
         return repository.findById(id)
                 .orElseThrow(() -> new NotFoundEntityException(entityClass, "Entity not found with id: " + id));
     }
 
     @Override
-    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort, CrudOptions options) {
+    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort) {
         return entityOmniSearch.page(new OmniSearchOptions()
                 .search(search)
                 .query(query)
@@ -49,7 +48,7 @@ public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> e
     }
 
     @Override
-    protected long internalCount(String search, String query, CrudOptions options) {
+    protected long internalCount(String search, String query) {
         return entityOmniSearch.count(new OmniSearchOptions()
                 .search(search)
                 .query(query)
@@ -57,22 +56,22 @@ public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> e
     }
 
     @Override
-    protected boolean internalExists(ID id, CrudOptions options) {
+    protected boolean internalExists(ID id) {
         return repository.existsById(id);
     }
 
     @Override
-    protected ENTITY internalCreate(ENTITY entity, CrudOptions options) {
+    protected ENTITY internalCreate(ENTITY entity) {
         return repository.save(entity);
     }
 
     @Override
-    protected ENTITY internalUpdate(ENTITY entity, CrudOptions options) {
+    protected ENTITY internalUpdate(ENTITY entity) {
         return repository.save(entity);
     }
 
     @Override
-    protected void internalDelete(ENTITY entity, CrudOptions options) {
+    protected void internalDelete(ENTITY entity) {
         repository.delete(entity);
     }
 }
