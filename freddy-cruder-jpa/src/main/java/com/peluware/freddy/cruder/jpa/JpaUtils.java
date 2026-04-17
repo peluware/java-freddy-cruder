@@ -5,9 +5,9 @@ import jakarta.persistence.Id;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-class InternalUtils {
+public class JpaUtils {
 
-    private InternalUtils() {
+    private JpaUtils() {
         throw new UnsupportedOperationException("Utility class");
     }
 

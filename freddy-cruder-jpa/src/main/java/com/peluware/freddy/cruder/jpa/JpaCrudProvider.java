@@ -3,6 +3,7 @@ package com.peluware.freddy.cruder.jpa;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
+import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.omnisearch.OmniSearch;
@@ -39,12 +40,16 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
     protected final OmniSearch omniSearch;
 
     /**
-     * Creates a JPA CRUD provider with the given EntityManager, JpaOmniSearch, and entity class.
+     * Creates a JPA CRUD provider with the given EntityManager, JpaOmniSearch, entity class and events
      */
-    public JpaCrudProvider(EntityManager entityManager, OmniSearch omniSearch, Class<ENTITY> entityClass) {
-        super(entityClass);
+    public JpaCrudProvider(EntityManager entityManager, OmniSearch omniSearch, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+        super(entityClass, events);
         this.entityManager = entityManager;
         this.omniSearch = omniSearch;
+    }
+
+    public JpaCrudProvider(EntityManager entityManager, OmniSearch omniSearch, Class<ENTITY> entityClass) {
+        this(entityManager, omniSearch, entityClass, EntityCrudEvents.getDefault());
     }
 
     /**
@@ -96,12 +101,20 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected boolean internalExists(ID id) {
+
         var cb = entityManager.getCriteriaBuilder();
         var cq = cb.createQuery(Long.class);
         var root = cq.from(entityClass);
+
         var idFieldName = getEntityIdFieldName();
-        cq.select(cb.count(root)).where(cb.equal(root.get(idFieldName), id));
-        var count = entityManager.createQuery(cq).getSingleResult();
+
+        cq
+            .select(cb.count(root))
+            .where(cb.equal(root.get(idFieldName), id));
+
+        var count = entityManager.createQuery(cq)
+            .getSingleResult();
+
         return count != null && count > 0;
     }
 
@@ -154,6 +167,6 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Can be overridden if the ID field is not named conventionally.
      */
     protected String getEntityIdFieldName() {
-        return InternalUtils.getIdFieldName(entityClass);
+        return JpaUtils.getIdFieldName(entityClass);
     }
 }

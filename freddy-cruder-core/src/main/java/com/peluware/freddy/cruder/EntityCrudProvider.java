@@ -22,7 +22,7 @@ import java.util.function.Supplier;
  * <ul>
  *   <li>Standardized CRUD operations defined by {@link CrudProvider}</li>
  *   <li>Entity/DTO mapping hooks via {@link #mapInput(INPUT, ENTITY, boolean)} and {@link #mapOutput(ENTITY)}</li>
- *   <li>Automatic invocation of CRUD lifecycle event callbacks via {@link CrudEvents}</li>
+ *   <li>Automatic invocation of CRUD lifecycle event callbacks via {@link EntityCrudEvents}</li>
  *   <li>Pre- and post-operation hooks for cross-cutting concerns</li>
  *   <li>Optional transaction wrapping through {@link #withTransaction(Supplier)}</li>
  * </ul>
@@ -46,19 +46,28 @@ import java.util.function.Supplier;
 public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT> {
 
     protected final Class<ENTITY> entityClass;
-    protected final CrudEvents<ENTITY, ID, INPUT> events;
+    protected final EntityCrudEvents<ENTITY, ID, INPUT> events;
 
     /**
      * Creates a new CRUD provider for the given entity type using custom CRUD lifecycle events.
      *
      * @param entityClass the entity class handled by this provider
+     * @param events      the CRUD lifecycle events handler
      */
-    protected EntityCrudProvider(Class<ENTITY> entityClass) {
+    protected EntityCrudProvider(Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         this.entityClass = Objects.requireNonNull(entityClass, "Entity class must not be null");
-        this.events = registerEvents();
+        this.events = Objects.requireNonNull(events, "Event class must not be null");
     }
 
 
+    /**
+     * Creates a new CRUD provider for the given entity type using default CRUD lifecycle events (no-op).
+     *
+     * @param entityClass the entity class handled by this provider
+     */
+    protected EntityCrudProvider(Class<ENTITY> entityClass) {
+        this(entityClass, EntityCrudEvents.getDefault());
+    }
     // ------------------------------------------------------------
     // CRUD OPERATIONS (public API)
     // ------------------------------------------------------------
@@ -354,15 +363,6 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      */
     protected <T> T withTransaction(Supplier<T> function) {
         return function.get();
-    }
-
-    /**
-     * Registers the CRUD lifecycle events handler.
-     *
-     * @return the CRUD lifecycle events handler
-     */
-    protected CrudEvents<ENTITY, ID, INPUT> registerEvents() {
-        return CrudEvents.getDefault();
     }
 
     /**

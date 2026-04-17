@@ -26,7 +26,7 @@ import java.util.function.Supplier;
  * <ul>
  *   <li>Standardized owned CRUD operations defined by {@link OwnedCrudProvider}</li>
  *   <li>Entity/DTO mapping hooks via {@link #mapInput(OWNER_ID, INPUT, ENTITY, boolean)} and {@link #mapOutput(OWNER_ID, ENTITY)}</li>
- *   <li>Automatic invocation of CRUD lifecycle event callbacks via {@link CrudEvents}</li>
+ *   <li>Automatic invocation of CRUD lifecycle event callbacks via {@link EntityCrudEvents}</li>
  *   <li>Pre- and post-operation hooks for cross-cutting concerns</li>
  *   <li>Optional transaction wrapping through {@link #withTransaction(Supplier)}</li>
  * </ul>
@@ -46,16 +46,21 @@ import java.util.function.Supplier;
 public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT> implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
 
     protected final Class<ENTITY> entityClass;
-    protected final CrudEvents<ENTITY, ID, INPUT> events;
+    protected final EntityCrudEvents<ENTITY, ID, INPUT> events;
 
     /**
      * Creates a new owned CRUD provider for the given entity type.
      *
      * @param entityClass the entity class handled by this provider
+     * @param events      the lifecycle events to trigger during CRUD operations
      */
-    protected OwnedEntityCrudProvider(Class<ENTITY> entityClass) {
+    protected OwnedEntityCrudProvider(Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         this.entityClass = Objects.requireNonNull(entityClass, "Entity class must not be null");
-        this.events = registerEvents();
+        this.events = Objects.requireNonNull(events, "EntityCrudEvents must not be null");
+    }
+
+    protected OwnedEntityCrudProvider(Class<ENTITY> entityClass) {
+        this(entityClass, EntityCrudEvents.getDefault());
     }
 
     // ------------------------------------------------------------
@@ -257,16 +262,16 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
     /**
      * Maps the contents of the input DTO into the given entity instance.
      *
-     * @param input   the input DTO
-     * @param entity  the entity to populate
-     * @param isNew   whether this is a creation (true) or update (false)
+     * @param input  the input DTO
+     * @param entity the entity to populate
+     * @param isNew  whether this is a creation (true) or update (false)
      */
     protected abstract void mapInput(OWNER_ID ownerId, INPUT input, ENTITY entity, boolean isNew);
 
     /**
      * Converts an entity into its output DTO representation.
      *
-     * @param entity  the entity to convert
+     * @param entity the entity to convert
      * @return the mapped output DTO
      */
     protected abstract OUTPUT mapOutput(OWNER_ID ownerId, ENTITY entity);
@@ -410,20 +415,6 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      */
     protected <T> T withTransaction(Supplier<T> function) {
         return function.get();
-    }
-
-    /**
-     * Registers the CRUD lifecycle events handler.
-     *
-     * <p>
-     * Reuses the same default events contract as {@link EntityCrudProvider}.
-     * Subclasses may override to provide a custom implementation.
-     * </p>
-     *
-     * @return the CRUD lifecycle events handler
-     */
-    protected CrudEvents<ENTITY, ID, INPUT> registerEvents() {
-        return CrudEvents.getDefault();
     }
 
     /**

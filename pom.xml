@@ -6,7 +6,7 @@
 
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder</artifactId>
-    <version>1.2.5</version>
+    <version>1.2.8</version>
     <packaging>pom</packaging>
     <name>Freddy Cruder</name>
     <description>

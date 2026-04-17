@@ -3,14 +3,14 @@ package com.peluware.freddy.cruder;
 
 import com.peluware.domain.Page;
 
-public interface CrudEvents<ENTITY, ID, INPUT> {
+public interface EntityCrudEvents<ENTITY, ID, INPUT> {
 
-    CrudEvents<?, ?, ?> DEFAULT = new CrudEvents<>() {
+    EntityCrudEvents<?, ?, ?> DEFAULT = new EntityCrudEvents<>() {
     };
 
     @SuppressWarnings("unchecked")
-    static <E, D, ID> CrudEvents<E, D, ID> getDefault() {
-        return (CrudEvents<E, D, ID>) DEFAULT;
+    static <E, D, ID> EntityCrudEvents<E, D, ID> getDefault() {
+        return (EntityCrudEvents<E, D, ID>) DEFAULT;
     }
 
     default void onFind(ENTITY entity) {
