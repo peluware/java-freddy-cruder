@@ -3,7 +3,7 @@ package com.peluware.freddy.cruder.springframework.web;
 import com.peluware.freddy.cruder.CrudContext;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
 import com.peluware.freddy.cruder.springframework.SpringOwnedCrudProvider;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -16,11 +16,11 @@ public interface OwnedCountController<OWNER_ID> {
     SpringOwnedCrudProvider<OWNER_ID, ?, ?, ?> getService();
 
     @GetMapping("/count")
-    default ResponseEntity<@NonNull Long> count(
-            @PathVariable("ownerId") OWNER_ID ownerId,
-            @RequestParam(name = "search", required = false) String search,
-            @RequestParam(name = "query", required = false) String query,
-            @RequestParam MultiValueMap<String, String> parameters
+    default ResponseEntity<Long> count(
+        @PathVariable("ownerId") OWNER_ID ownerId,
+        @RequestParam(name = "search", required = false) @Nullable String search,
+        @RequestParam(name = "query", required = false) @Nullable String query,
+        @RequestParam MultiValueMap<String, String> parameters
     ) {
         var filtered = new LinkedMultiValueMap<>(parameters);
         filtered.remove("search");

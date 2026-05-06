@@ -11,8 +11,8 @@ import com.peluware.omnisearch.OmniSearchOptions;
 import com.peluware.omnisearch.jpa.JpaOmniSearch;
 import cz.jirutka.rsql.parser.RSQLParser;
 import jakarta.persistence.EntityManager;
+import org.jspecify.annotations.Nullable;
 
-import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -68,9 +68,13 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Finds an entity by its identifier or throws {@link NotFoundEntityException} if not found.
      */
     @Override
+    @SuppressWarnings("ConstantConditions")
     protected ENTITY internalFind(ID id) throws NotFoundEntityException {
-        return Optional.ofNullable(entityManager.find(entityClass, id))
-                .orElseThrow(() -> new NotFoundEntityException(entityClass, id));
+        ENTITY entity = entityManager.find(entityClass, id);
+        if (entity == null) {
+            throw new NotFoundEntityException(entityClass, id);
+        }
+        return entity;
     }
 
 
@@ -78,22 +82,22 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Searches entities using a search string and RSQL query with pagination and sorting.
      */
     @Override
-    protected Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort) {
+    protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         return omniSearch.page(entityClass, new OmniSearchOptions()
-                .search(search)
-                .pagination(pagination)
-                .sort(sort)
-                .query(query));
+            .search(search)
+            .pagination(pagination)
+            .sort(sort)
+            .query(query));
     }
 
     /**
      * Counts entities matching search string and RSQL query.
      */
     @Override
-    protected long internalCount(String search, String query) {
+    protected long internalCount(@Nullable String search, @Nullable String query) {
         return omniSearch.count(entityClass, new OmniSearchOptions()
-                .search(search)
-                .query(query));
+            .search(search)
+            .query(query));
     }
 
     /**
@@ -114,8 +118,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
 
         var count = entityManager.createQuery(cq)
             .getSingleResult();
-
-        return count != null && count > 0;
+        return count > 0;
     }
 
     /**

@@ -2,6 +2,7 @@ package com.peluware.freddy.cruder.springframework;
 
 import com.peluware.freddy.cruder.OwnedCrudProvider;
 import jakarta.validation.constraints.NotNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -32,7 +33,7 @@ public interface SpringOwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> extends Ow
      * @return a Spring {@link Page} containing results scoped to the owner
      * @throws com.peluware.freddy.cruder.NotFoundException if the owner does not exist
      */
-    default Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, @NotNull Pageable pageable) {
+    default Page<OUTPUT> page(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, @NotNull Pageable pageable) {
         return SpringDataAdapters.page(this, ownerId, search, query, pageable);
     }
 }

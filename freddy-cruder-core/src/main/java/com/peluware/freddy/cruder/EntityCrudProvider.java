@@ -6,6 +6,7 @@ import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.utils.StringUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -82,11 +83,11 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * </p>
      */
     @Override
-    public Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort) {
+    public Page<OUTPUT> page(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         preProcess(CrudOperation.PAGE);
 
         var normalized = StringUtils.normalize(search);
-        var page = resolvePage(normalized, pagination, sort, query);
+        var page = resolvePage(normalized, query, pagination, sort);
 
         events.onPage(page);
         page.getContent().forEach(events::eachEntity);
@@ -125,7 +126,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * </p>
      */
     @Override
-    public long count(String search, String query) {
+    public long count(@Nullable String search, @Nullable String query) {
         preProcess(CrudOperation.COUNT);
 
         var normalized = StringUtils.normalize(search);
@@ -288,9 +289,9 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
 
     protected abstract ENTITY internalFind(ID id) throws NotFoundEntityException;
 
-    protected abstract Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort);
+    protected abstract Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort);
 
-    protected abstract long internalCount(String search, String query);
+    protected abstract long internalCount(@Nullable String search, @Nullable String query);
 
     protected abstract boolean internalExists(ID id);
 
@@ -371,18 +372,16 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * @param query the raw query string
      * @return the processed query string
      */
-    protected String applyQueryPolicies(String query) {
+    protected @Nullable String applyQueryPolicies(@Nullable String query) {
         return query;
     }
 
-    private Page<ENTITY> resolvePage(String search, Pagination pagination, Sort sort, String query) {
-        if (pagination == null) pagination = Pagination.unpaginated();
-        if (sort == null) sort = Sort.unsorted();
+    private Page<ENTITY> resolvePage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var newQuery = applyQueryPolicies(query);
         return internalPage(search, newQuery, pagination, sort);
     }
 
-    private long resolveCount(String search, String query) {
+    private long resolveCount(@Nullable String search, @Nullable String query) {
         var newQuery = applyQueryPolicies(query);
         return internalCount(search, newQuery);
     }

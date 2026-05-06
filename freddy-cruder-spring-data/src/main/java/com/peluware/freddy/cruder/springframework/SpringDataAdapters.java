@@ -5,7 +5,7 @@ import com.peluware.domain.Sort;
 import com.peluware.domain.Order;
 import com.peluware.freddy.cruder.CrudProvider;
 import com.peluware.freddy.cruder.OwnedCrudProvider;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -27,11 +27,11 @@ public final class SpringDataAdapters {
     }
 
 
-    public static <ID, OUTPUT> Page<@NonNull OUTPUT> page(
-            CrudProvider<ID, ?, OUTPUT> provider,
-            String search,
-            String query,
-            Pageable pageable
+    public static <ID, OUTPUT> Page<OUTPUT> page(
+        CrudProvider<ID, ?, OUTPUT> provider,
+        @Nullable  String search,
+        @Nullable String query,
+        Pageable pageable
     ) {
         return withSpringPageable(pageable, (pagination, sort) -> {
             var page = provider.page(search, query, pagination, sort);
@@ -39,12 +39,12 @@ public final class SpringDataAdapters {
         });
     }
 
-    public static <OWNER_ID, ID, OUTPUT> Page<@NonNull OUTPUT> page(
-            OwnedCrudProvider<OWNER_ID, ID, ?, OUTPUT> provider,
-            OWNER_ID ownerId,
-            String search,
-            String query,
-            Pageable pageable
+    public static <OWNER_ID, ID, OUTPUT> Page<OUTPUT> page(
+        OwnedCrudProvider<OWNER_ID, ID, ?, OUTPUT> provider,
+        OWNER_ID ownerId,
+        @Nullable String search,
+        @Nullable String query,
+        Pageable pageable
     ) {
         return withSpringPageable(pageable, (pagination, sort) -> {
             var page = provider.page(ownerId, search, query, pagination, sort);
@@ -54,24 +54,24 @@ public final class SpringDataAdapters {
 
     public static Pagination toPeluwarePagination(Pageable pageable) {
         return pageable.isUnpaged()
-                ? Pagination.unpaginated()
-                : Pagination.of(pageable.getPageNumber(), pageable.getPageSize());
+            ? Pagination.unpaginated()
+            : Pagination.of(pageable.getPageNumber(), pageable.getPageSize());
     }
 
     public static Sort toPeluwareSort(org.springframework.data.domain.Sort sort) {
         return sort.isUnsorted()
-                ? Sort.unsorted()
-                : new Sort(toPeluwareOrders(sort));
+            ? Sort.unsorted()
+            : new Sort(toPeluwareOrders(sort));
     }
 
     public static List<Order> toPeluwareOrders(Streamable<org.springframework.data.domain.Sort.Order> sort) {
         return sort.stream()
-                .map(order -> new Order(
-                        order.getProperty(),
-                        order.isAscending()
-                                ? Order.Direction.ASC
-                                : Order.Direction.DESC))
-                .toList();
+            .map(order -> new Order(
+                order.getProperty(),
+                order.isAscending()
+                    ? Order.Direction.ASC
+                    : Order.Direction.DESC))
+            .toList();
     }
 
     public static org.springframework.data.domain.Sort toSpringSort(Sort sort) {
@@ -79,12 +79,12 @@ public final class SpringDataAdapters {
             return org.springframework.data.domain.Sort.unsorted();
         }
         var orders = sort.orders().stream()
-                .map(order -> new org.springframework.data.domain.Sort.Order(
-                        order.direction() == Order.Direction.ASC
-                                ? org.springframework.data.domain.Sort.Direction.ASC
-                                : org.springframework.data.domain.Sort.Direction.DESC,
-                        order.property()))
-                .toList();
+            .map(order -> new org.springframework.data.domain.Sort.Order(
+                order.direction() == Order.Direction.ASC
+                    ? org.springframework.data.domain.Sort.Direction.ASC
+                    : org.springframework.data.domain.Sort.Direction.DESC,
+                order.property()))
+            .toList();
         return org.springframework.data.domain.Sort.by(orders);
     }
 
@@ -96,9 +96,9 @@ public final class SpringDataAdapters {
 
         var springSort = toSpringSort(sort);
         return org.springframework.data.domain.PageRequest.of(
-                pagination.getNumber(),
-                pagination.getSize(),
-                springSort
+            pagination.getNumber(),
+            pagination.getSize(),
+            springSort
         );
     }
 }

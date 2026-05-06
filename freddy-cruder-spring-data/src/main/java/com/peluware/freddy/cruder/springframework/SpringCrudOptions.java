@@ -1,6 +1,7 @@
 package com.peluware.freddy.cruder.springframework;
 
 import com.peluware.freddy.cruder.CrudOptions;
+import org.jspecify.annotations.Nullable;
 import org.springframework.util.MultiValueMap;
 
 import java.time.Instant;
@@ -42,7 +43,7 @@ public final class SpringCrudOptions implements CrudOptions {
     // --------------------------------------------------
 
     @Override
-    public <T> T get(String key, Class<T> type) {
+    public <T> @Nullable T get(String key, Class<T> type) {
         String value = parameters.getFirst(key);
         if (value == null) return null;
         return convert(value, type, key);
@@ -73,7 +74,7 @@ public final class SpringCrudOptions implements CrudOptions {
     // --------------------------------------------------
 
     @Override
-    public <E extends Enum<E>> E getEnum(String key, Class<E> enumType) {
+    public <E extends Enum<E>> @Nullable E getEnum(String key, Class<E> enumType) {
         return get(key, enumType);
     }
 
@@ -149,7 +150,9 @@ public final class SpringCrudOptions implements CrudOptions {
             }
 
             if (Enum.class.isAssignableFrom(type)) {
-                return (T) Enum.valueOf((Class<Enum>) type.asSubclass(Enum.class), value);
+                @SuppressWarnings("rawtypes")
+                var val = (T) Enum.valueOf((Class<Enum>) type.asSubclass(Enum.class), value);
+                return val;
             }
 
         } catch (Exception e) {

@@ -6,6 +6,7 @@ import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.utils.StringUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -119,7 +120,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * </p>
      */
     @Override
-    public long count(@NotNull OWNER_ID ownerId, String search, String query) throws NotFoundException {
+    public long count(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query) throws NotFoundException {
         preProcess(CrudOperation.COUNT);
 
         var normalized = StringUtils.normalize(search);
@@ -305,7 +306,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * @param sort       sorting configuration
      * @return a page of matching entities
      */
-    protected abstract Page<ENTITY> internalPage(OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort);
+    protected abstract Page<ENTITY> internalPage(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort);
 
     /**
      * Counts entities belonging to the given owner matching optional filters.
@@ -315,7 +316,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * @param query   processed query expression
      * @return total count of matching entities
      */
-    protected abstract long internalCount(OWNER_ID ownerId, String search, String query);
+    protected abstract long internalCount(OWNER_ID ownerId, @Nullable String search, @Nullable String query);
 
     /**
      * Checks whether an entity with the given identifier exists within the owner's scope.
@@ -423,7 +424,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * @param query the raw query string
      * @return the processed query string
      */
-    protected String applyQueryPolicies(OWNER_ID ownerId, String query) {
+    protected @Nullable String applyQueryPolicies(OWNER_ID ownerId, @Nullable String query) {
         return query;
     }
 
@@ -438,7 +439,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
         return internalPage(ownerId, search, newQuery, pagination, sort);
     }
 
-    private long resolveCount(OWNER_ID ownerId, String search, String query) {
+    private long resolveCount(OWNER_ID ownerId, @Nullable String search, @Nullable String query) {
         var newQuery = applyQueryPolicies(ownerId, query);
         return internalCount(ownerId, search, newQuery);
     }

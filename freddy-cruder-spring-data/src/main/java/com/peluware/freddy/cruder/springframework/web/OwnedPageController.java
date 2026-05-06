@@ -3,7 +3,7 @@ package com.peluware.freddy.cruder.springframework.web;
 import com.peluware.freddy.cruder.CrudContext;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
 import com.peluware.freddy.cruder.springframework.SpringOwnedCrudProvider;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -18,10 +18,10 @@ public interface OwnedPageController<OWNER_ID, ID, OUTPUT> {
     SpringOwnedCrudProvider<OWNER_ID, ID, ?, OUTPUT> getService();
 
     @GetMapping
-    default ResponseEntity<@NonNull Page<@NonNull OUTPUT>> page(
+    default ResponseEntity<Page<OUTPUT>> page(
             @PathVariable OWNER_ID ownerId,
-            @RequestParam(name = "search", required = false) String search,
-            @RequestParam(name = "query", required = false) String query,
+            @RequestParam(name = "search", required = false) @Nullable String search,
+            @RequestParam(name = "query", required = false) @Nullable String query,
             Pageable pageable,
             @RequestParam MultiValueMap<String, String> parameters
     ) {

@@ -5,6 +5,7 @@ import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Proveedor genérico CRUD diseñado para desacoplar la lógica de aplicación
@@ -49,7 +50,7 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param sort       sorting configuration, or {@code null} for unsorted results
      * @return a {@link Page} containing the paginated result set
      */
-    Page<OUTPUT> page(String search, String query, Pagination pagination, Sort sort);
+    Page<OUTPUT> page(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort);
 
     // ==================================================
     // FIND
@@ -76,7 +77,7 @@ public interface CrudProvider<ID, INPUT, OUTPUT> {
      * @param query  optional additional query expression (may be {@code null})
      * @return total number of resources matching the criteria
      */
-    long count(String search, String query);
+    long count(@Nullable String search, @Nullable String query);
 
 
     // ==================================================

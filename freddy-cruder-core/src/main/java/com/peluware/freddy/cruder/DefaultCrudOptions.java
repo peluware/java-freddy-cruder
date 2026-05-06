@@ -1,5 +1,7 @@
 package com.peluware.freddy.cruder;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.*;
 
 public final class DefaultCrudOptions implements CrudOptions {
@@ -53,7 +55,7 @@ public final class DefaultCrudOptions implements CrudOptions {
     // --------------------------------------------------
 
     @Override
-    public <T> T get(String key, Class<T> type) {
+    public <T> @Nullable T get(String key, Class<T> type) {
         List<Object> list = values.get(key);
         if (list == null || list.isEmpty()) {
             return null;
@@ -86,7 +88,7 @@ public final class DefaultCrudOptions implements CrudOptions {
     // --------------------------------------------------
 
     @Override
-    public <E extends Enum<E>> E getEnum(String key, Class<E> enumType) {
+    public <E extends Enum<E>> @Nullable E getEnum(String key, Class<E> enumType) {
         Object raw = get(key, Object.class);
         if (raw == null) return null;
 
@@ -120,7 +122,8 @@ public final class DefaultCrudOptions implements CrudOptions {
 
         List<T> result = new ArrayList<>(list.size());
         for (Object value : list) {
-            result.add(cast(value, elementType, key));
+            T values = cast(value, elementType, key);
+            result.add(values);
         }
 
         return List.copyOf(result);
@@ -135,14 +138,10 @@ public final class DefaultCrudOptions implements CrudOptions {
     // --------------------------------------------------
     // Internal casting
     // --------------------------------------------------
-
     private <T> T cast(Object value, Class<T> type, String key) {
-        if (value == null) return null;
-
         if (!type.isInstance(value)) {
             throw new IllegalArgumentException("Option '" + key + "' is not of type " + type.getSimpleName());
         }
-
         return type.cast(value);
     }
 }

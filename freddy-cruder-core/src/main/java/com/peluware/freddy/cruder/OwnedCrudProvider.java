@@ -5,6 +5,7 @@ import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Proveedor genérico CRUD para subrecursos que pertenecen a un recurso padre.
@@ -54,7 +55,7 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @return a {@link Page} containing the paginated result set
      * @throws NotFoundException if the owner does not exist
      */
-    Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort);
+    Page<OUTPUT> page(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort);
 
     // ==================================================
     // FIND
@@ -84,7 +85,7 @@ public interface OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
      * @return total number of resources matching the criteria
      * @throws NotFoundException if the owner does not exist
      */
-    long count(@NotNull OWNER_ID ownerId, String search, String query) throws NotFoundException;
+    long count(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query) throws NotFoundException;
 
 
     // ==================================================

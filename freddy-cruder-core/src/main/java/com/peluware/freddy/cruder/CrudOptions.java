@@ -1,5 +1,7 @@
 package com.peluware.freddy.cruder;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +27,7 @@ public interface CrudOptions {
     // Acceso genérico tipado
     // --------------------------------------------------
 
-    <T> T get(String key, Class<T> type);
+    <T> @Nullable T get(String key, Class<T> type);
 
     <T> T getOrDefault(String key, Class<T> type, T defaultValue);
 
@@ -36,15 +38,15 @@ public interface CrudOptions {
     // Primitivos comunes (helpers)
     // --------------------------------------------------
 
-    default String getString(String key) {
+    default @Nullable String getString(String key) {
         return get(key, String.class);
     }
 
-    default String getString(String key, String defaultValue) {
+    default @Nullable String getString(String key, String defaultValue) {
         return getOrDefault(key, String.class, defaultValue);
     }
 
-    default Boolean getBoolean(String key) {
+    default @Nullable Boolean getBoolean(String key) {
         return get(key, Boolean.class);
     }
 
@@ -52,7 +54,7 @@ public interface CrudOptions {
         return getOrDefault(key, Boolean.class, defaultValue);
     }
 
-    default Integer getInt(String key) {
+    default @Nullable Integer getInt(String key) {
         return get(key, Integer.class);
     }
 
@@ -60,7 +62,7 @@ public interface CrudOptions {
         return getOrDefault(key, Integer.class, defaultValue);
     }
 
-    default Long getLong(String key) {
+    default @Nullable Long getLong(String key) {
         return get(key, Long.class);
     }
 
@@ -68,7 +70,7 @@ public interface CrudOptions {
         return getOrDefault(key, Long.class, defaultValue);
     }
 
-    default Double getDouble(String key) {
+    default @Nullable Double getDouble(String key) {
         return get(key, Double.class);
     }
 
@@ -81,15 +83,13 @@ public interface CrudOptions {
     // Enums
     // --------------------------------------------------
 
-    <E extends Enum<E>> E getEnum(String key, Class<E> enumType);
+    <E extends Enum<E>> @Nullable E getEnum(String key, Class<E> enumType);
 
-    <E extends Enum<E>> E getEnumOrDefault(String key, Class<E> enumType, E defaultValue);
-
+    <E extends Enum<E>> @Nullable E getEnumOrDefault(String key, Class<E> enumType, E defaultValue);
 
     <T> List<T> getAll(String key, Class<T> elementType);
 
     <T> List<T> getAllOrDefault(String key, Class<T> elementType, List<T> defaultValue);
-
 
     <T> T require(String key, Class<T> type) throws IllegalArgumentException;
 
