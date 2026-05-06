@@ -77,11 +77,11 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * </p>
      */
     @Override
-    public Page<OUTPUT> page(@NotNull OWNER_ID ownerId, String search, String query, Pagination pagination, Sort sort) throws NotFoundException {
+    public Page<OUTPUT> page(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort) throws NotFoundException {
         preProcess(CrudOperation.PAGE);
 
         var normalized = StringUtils.normalize(search);
-        var page = resolvePage(ownerId, normalized, pagination, sort, query);
+        var page = resolvePage(ownerId, normalized, query, pagination, sort);
 
         events.onPage(page);
         page.getContent().forEach(events::eachEntity);
@@ -250,7 +250,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
             internalDelete(ownerId, entity);
 
             events.onAfterDelete(entity);
-            return null;
+            return Void.class;
         });
 
         postProcess(CrudOperation.DELETE);
@@ -432,9 +432,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
     // PRIVATE HELPERS
     // ------------------------------------------------------------
 
-    private Page<ENTITY> resolvePage(OWNER_ID ownerId, String search, Pagination pagination, Sort sort, String query) {
-        if (pagination == null) pagination = Pagination.unpaginated();
-        if (sort == null) sort = Sort.unsorted();
+    private Page<ENTITY> resolvePage(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var newQuery = applyQueryPolicies(ownerId, query);
         return internalPage(ownerId, search, newQuery, pagination, sort);
     }

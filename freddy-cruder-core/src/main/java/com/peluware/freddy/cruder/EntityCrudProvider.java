@@ -256,7 +256,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
             internalDelete(entity);
 
             events.onAfterDelete(entity);
-            return null;
+            return Void.class;
         });
 
         postProcess(CrudOperation.DELETE);

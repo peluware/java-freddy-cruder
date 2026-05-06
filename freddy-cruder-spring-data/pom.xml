@@ -7,14 +7,14 @@
     <parent>
         <groupId>com.peluware</groupId>
         <artifactId>freddy-cruder</artifactId>
-       <version>1.2.8</version>
+       <version>1.2.9</version>
     </parent>
 
     <artifactId>freddy-cruder-spring-data</artifactId>
     <name>Freddy Cruder Spring Boot Starter</name>
 
     <properties>
-        <org.springframework.boot.version>4.0.1</org.springframework.boot.version>
+        <org.springframework.boot.version>4.0.6</org.springframework.boot.version>
     </properties>
 
     <dependencies>
@@ -36,16 +36,6 @@
             <artifactId>spring-web</artifactId>
             <optional>true</optional>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.security</groupId>-->
-<!--            <artifactId>spring-security-core</artifactId>-->
-<!--            <optional>true</optional>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework</groupId>-->
-<!--            <artifactId>spring-aop</artifactId>-->
-<!--            <optional>true</optional>-->
-<!--        </dependency>-->
     </dependencies>
 
     <dependencyManagement>
