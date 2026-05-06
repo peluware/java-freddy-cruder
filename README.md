@@ -162,15 +162,15 @@ create(input)
 
 ## Usage with Spring Data
 
-### 1. Define your provider
+### 1. Define your service
 
 Extend `SpringRespositoryCrudProvider` and implement the two mapping methods. Everything else is handled for you.
 
 ```java
 @Service
-public class ProductProvider extends SpringRespositoryCrudProvider<Product, Long, ProductInput, ProductOutput> {
+public class ProductService extends SpringRespositoryCrudProvider<Product, Long, ProductInput, ProductOutput> {
 
-    public ProductProvider(CrudSearchRepository<Product, Long> repository) {
+    public ProductService(CrudSearchRepository<Product, Long> repository) {
         super(repository, Product.class);
     }
 
@@ -189,22 +189,22 @@ public class ProductProvider extends SpringRespositoryCrudProvider<Product, Long
 
 ### 2. Expose REST endpoints
 
-Implement any combination of controller interfaces. Each one brings a default `@RequestMapping` method wired to your provider.
+Implement any combination of controller interfaces. Each one brings a default `@RequestMapping` method wired to your service.
 
 ```java
 @RestController
 @RequestMapping("/products")
 public class ProductController implements CrudController<Long, ProductInput, ProductOutput> {
 
-    private final ProductProvider provider;
+    private final ProductService service;
 
-    public ProductController(ProductProvider provider) {
-        this.provider = provider;
+    public ProductController(ProductService service) {
+        this.service = service;
     }
 
     @Override
-    public SpringCrudProvider<Long, ProductInput, ProductOutput> provider() {
-        return provider;
+    public SpringCrudProvider<Long, ProductInput, ProductOutput> getService() {
+        return service;
     }
 }
 ```
