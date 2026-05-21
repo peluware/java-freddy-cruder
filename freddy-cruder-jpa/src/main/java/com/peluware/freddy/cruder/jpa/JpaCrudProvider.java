@@ -60,6 +60,28 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
         this(entityManager, new JpaOmniSearch(entityManager, new RSQLParser()), entityClass);
     }
 
+
+    /**
+     * Creates a JPA CRUD provider with the given EntityManager, JpaOmniSearch, and events
+     */
+    public JpaCrudProvider(EntityManager entityManager, OmniSearch omniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+        super(events);
+        this.entityManager = entityManager;
+        this.omniSearch = omniSearch;
+    }
+
+    public JpaCrudProvider(EntityManager entityManager, OmniSearch omniSearch) {
+        this(entityManager, omniSearch, EntityCrudEvents.getDefault());
+    }
+
+    /**
+     * Creates a JPA CRUD provider with the given EntityManager, using a default JpaOmniSearch with RSQL parsing.
+     */
+    public JpaCrudProvider(EntityManager entityManager) {
+        this(entityManager, new JpaOmniSearch(entityManager, new RSQLParser()));
+    }
+
+
     // ------------------------------------------------------------
     // INTERNAL CRUD IMPLEMENTATIONS
     // ------------------------------------------------------------

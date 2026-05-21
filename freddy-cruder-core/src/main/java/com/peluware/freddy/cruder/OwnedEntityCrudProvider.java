@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.Nullable;
 
+import com.peluware.freddy.cruder.utils.ReflectUtils;
+
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -62,6 +64,44 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
 
     protected OwnedEntityCrudProvider(Class<ENTITY> entityClass) {
         this(entityClass, EntityCrudEvents.getDefault());
+    }
+
+    /**
+     * Creates a new owned CRUD provider by automatically resolving the managed entity type
+     * from the generic type hierarchy using reflection.
+     *
+     * <p>
+     * This constructor supports indirect inheritance and generic type propagation,
+     * allowing subclasses to omit explicitly passing the entity class.
+     * </p>
+     *
+     * <p>
+     * Example:
+     * </p>
+     *
+     * <pre>{@code
+     * class OrderCrud extends OwnedEntityCrudProvider<Order, Long, Long, OrderInput, OrderOutput> {
+     * }
+     * }</pre>
+     *
+     * <p>
+     * In this case, the entity class ({@code Order.class}) is resolved automatically.
+     * </p>
+     *
+     * @param events the CRUD lifecycle events handler
+     */
+    @SuppressWarnings("unchecked")
+    protected OwnedEntityCrudProvider(EntityCrudEvents<ENTITY, ID, INPUT> events) {
+        this.entityClass = (Class<ENTITY>) ReflectUtils.resolveGenericType(getClass(), OwnedEntityCrudProvider.class, 0);
+        this.events = Objects.requireNonNull(events, "EntityCrudEvents must not be null");
+    }
+
+    /**
+     * Creates a new owned CRUD provider using automatically resolved entity type
+     * and default CRUD lifecycle events (no-op).
+     */
+    protected OwnedEntityCrudProvider() {
+        this(EntityCrudEvents.getDefault());
     }
 
     // ------------------------------------------------------------

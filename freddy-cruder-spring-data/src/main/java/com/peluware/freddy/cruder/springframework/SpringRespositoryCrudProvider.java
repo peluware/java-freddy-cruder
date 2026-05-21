@@ -44,6 +44,35 @@ public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> e
         this(repository, repository, entityClass, EntityCrudEvents.getDefault());
     }
 
+
+    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+        super(events);
+        this.repository = repository;
+        this.entityOmniSearch = entityOmniSearch;
+    }
+
+    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch) {
+        this(repository, entityOmniSearch, EntityCrudEvents.getDefault());
+    }
+
+    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+        super(events);
+        this.repository = repository;
+        this.entityOmniSearch = omniSearch.forEntity(super.entityClass);
+    }
+
+    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch) {
+        this(repository, omniSearch, EntityCrudEvents.getDefault());
+    }
+
+    public SpringRespositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+        this(repository, repository, events);
+    }
+
+    public SpringRespositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository) {
+        this(repository, repository, EntityCrudEvents.getDefault());
+    }
+
     @Override
     protected ENTITY internalFind(ID id) throws NotFoundEntityException {
         return repository.findById(id)
@@ -51,7 +80,7 @@ public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> e
     }
 
     @Override
-    protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query,  Pagination pagination, Sort sort) {
+    protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         return entityOmniSearch.page(new OmniSearchOptions()
             .search(search)
             .query(query)

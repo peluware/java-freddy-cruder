@@ -3,6 +3,7 @@ package com.peluware.freddy.cruder;
 import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
+import com.peluware.freddy.cruder.utils.ReflectUtils;
 import com.peluware.freddy.cruder.utils.StringUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -69,6 +70,46 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
     protected EntityCrudProvider(Class<ENTITY> entityClass) {
         this(entityClass, EntityCrudEvents.getDefault());
     }
+
+
+    /**
+     * Creates a new CRUD provider by automatically resolving the managed entity type
+     * from the generic type hierarchy using reflection.
+     *
+     * <p>
+     * This constructor supports indirect inheritance and generic type propagation,
+     * allowing subclasses to omit explicitly passing the entity class.
+     * </p>
+     *
+     * <p>
+     * Example:
+     * </p>
+     *
+     * <pre>{@code
+     * class UserCrud extends EntityCrudProvider<User, Long, UserInput, UserOutput> {
+     * }
+     * }</pre>
+     *
+     * <p>
+     * In this case, the entity class ({@code User.class}) is resolved automatically.
+     * </p>
+     *
+     * @param events the CRUD lifecycle events handler
+     */
+    @SuppressWarnings("unchecked")
+    protected EntityCrudProvider(EntityCrudEvents<ENTITY, ID, INPUT> events) {
+        this.entityClass = (Class<ENTITY>) ReflectUtils.resolveGenericType(getClass(), EntityCrudProvider.class, 0);
+        this.events = Objects.requireNonNull(events, "Event class must not be null");
+    }
+
+    /**
+     * Creates a new CRUD provider using automatically resolved entity type
+     * and default CRUD lifecycle events (no-op).
+     */
+    protected EntityCrudProvider() {
+        this(EntityCrudEvents.getDefault());
+    }
+
     // ------------------------------------------------------------
     // CRUD OPERATIONS (public API)
     // ------------------------------------------------------------
@@ -262,9 +303,9 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
         postProcess(CrudOperation.DELETE);
     }
 
-    // ------------------------------------------------------------
-    // ABSTRACT MAPPING CONTRACTS
-    // ------------------------------------------------------------
+// ------------------------------------------------------------
+// ABSTRACT MAPPING CONTRACTS
+// ------------------------------------------------------------
 
     /**
      * Maps the contents of the input DTO into the given entity instance.
@@ -283,9 +324,9 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      */
     protected abstract OUTPUT mapOutput(ENTITY entity);
 
-    // ------------------------------------------------------------
-    // ABSTRACT PERSISTENCE CONTRACTS
-    // ------------------------------------------------------------
+// ------------------------------------------------------------
+// ABSTRACT PERSISTENCE CONTRACTS
+// ------------------------------------------------------------
 
     protected abstract ENTITY internalFind(ID id) throws NotFoundEntityException;
 
@@ -301,9 +342,9 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
 
     protected abstract void internalDelete(ENTITY entity);
 
-    // ------------------------------------------------------------
-    // EXTENSION HOOKS
-    // ------------------------------------------------------------
+// ------------------------------------------------------------
+// EXTENSION HOOKS
+// ------------------------------------------------------------
 
     /**
      * Hook executed before a CRUD operation begins.
@@ -328,9 +369,9 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
         // Subclasses may override
     }
 
-    // ------------------------------------------------------------
-    // UTILITIES
-    // ------------------------------------------------------------
+// ------------------------------------------------------------
+// UTILITIES
+// ------------------------------------------------------------
 
     /**
      * Creates a new instance of the managed entity type using its default constructor.
@@ -385,4 +426,6 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
         var newQuery = applyQueryPolicies(query);
         return internalCount(search, newQuery);
     }
+
+
 }

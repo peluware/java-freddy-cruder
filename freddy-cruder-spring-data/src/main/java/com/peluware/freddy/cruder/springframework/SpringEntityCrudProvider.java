@@ -12,4 +12,14 @@ public abstract class SpringEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> extend
     public SpringEntityCrudProvider(Class<ENTITY> entityClass) {
         this(entityClass, EntityCrudEvents.getDefault());
     }
+
+    public SpringEntityCrudProvider(EntityCrudEvents<ENTITY, ID, INPUT> events) {
+        super(events);
+    }
+
+    public SpringEntityCrudProvider() {
+        this(EntityCrudEvents.getDefault());
+    }
+
+
 }
