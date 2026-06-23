@@ -7,14 +7,14 @@
     <parent>
         <groupId>com.peluware</groupId>
         <artifactId>freddy-cruder</artifactId>
-       <version>1.2.10</version>
+       <version>1.2.11</version>
     </parent>
 
     <artifactId>freddy-cruder-spring-data</artifactId>
     <name>Freddy Cruder Spring Boot Starter</name>
 
     <properties>
-        <org.springframework.boot.version>4.0.6</org.springframework.boot.version>
+        <org.springframework.boot.version>4.1.0</org.springframework.boot.version>
     </properties>
 
     <dependencies>

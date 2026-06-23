@@ -11,72 +11,72 @@ import com.peluware.omnisearch.OmniSearchOptions;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.repository.CrudRepository;
 
-public abstract class SpringRespositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends SpringEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> {
+public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends SpringEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> {
 
     protected final CrudRepository<ENTITY, ID> repository;
     protected final EntityOmniSearch<ENTITY> entityOmniSearch;
 
-    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(entityClass, events);
         this.repository = repository;
         this.entityOmniSearch = entityOmniSearch;
     }
 
-    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, Class<ENTITY> entityClass) {
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, Class<ENTITY> entityClass) {
         this(repository, entityOmniSearch, entityClass, EntityCrudEvents.getDefault());
     }
 
-    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(entityClass, events);
         this.repository = repository;
         this.entityOmniSearch = omniSearch.forEntity(entityClass);
     }
 
-    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, Class<ENTITY> entityClass) {
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, Class<ENTITY> entityClass) {
         this(repository, omniSearch, entityClass, EntityCrudEvents.getDefault());
     }
 
-    public SpringRespositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         this(repository, repository, entityClass, events);
     }
 
-    public SpringRespositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, Class<ENTITY> entityClass) {
+    public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, Class<ENTITY> entityClass) {
         this(repository, repository, entityClass, EntityCrudEvents.getDefault());
     }
 
 
-    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(events);
         this.repository = repository;
         this.entityOmniSearch = entityOmniSearch;
     }
 
-    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch) {
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch) {
         this(repository, entityOmniSearch, EntityCrudEvents.getDefault());
     }
 
-    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(events);
         this.repository = repository;
         this.entityOmniSearch = omniSearch.forEntity(super.entityClass);
     }
 
-    public SpringRespositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch) {
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch) {
         this(repository, omniSearch, EntityCrudEvents.getDefault());
     }
 
-    public SpringRespositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         this(repository, repository, events);
     }
 
-    public SpringRespositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository) {
+    public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository) {
         this(repository, repository, EntityCrudEvents.getDefault());
     }
 
     @Override
     protected ENTITY internalFind(ID id) throws NotFoundEntityException {
         return repository.findById(id)
-            .orElseThrow(() -> new NotFoundEntityException(entityClass, "Entity not found with id: " + id));
+            .orElseThrow(() -> new NotFoundEntityException(entityClass, id, "Entity not found with id: " + id));
     }
 
     @Override
