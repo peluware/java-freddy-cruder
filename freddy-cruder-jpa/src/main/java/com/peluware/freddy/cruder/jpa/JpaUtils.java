@@ -1,9 +1,11 @@
 package com.peluware.freddy.cruder.jpa;
 
+import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.Id;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public class JpaUtils {
 
@@ -22,5 +24,28 @@ public class JpaUtils {
             }
             throw new IllegalStateException("No field annotated with @Id found in " + cls.getName());
         });
+    }
+
+    public static <T> T withTransaction(EntityTransaction transaction, Supplier<T> function) {
+        boolean weStartedIt = !transaction.isActive();
+
+        try {
+            if (weStartedIt) {
+                transaction.begin();
+            }
+
+            T result = function.get();
+
+            if (weStartedIt) {
+                transaction.commit();
+            }
+
+            return result;
+        } catch (RuntimeException e) {
+            if (weStartedIt && transaction.isActive()) {
+                transaction.rollback();
+            }
+            throw e;
+        }
     }
 }

@@ -33,7 +33,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>1.2.11</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 
@@ -42,7 +42,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>1.2.11</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 
@@ -51,7 +51,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>1.2.11</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 

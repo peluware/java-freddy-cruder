@@ -209,7 +209,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      *   <li>Creates a new empty entity instance via {@link #newEntity()}</li>
      *   <li>Maps input DTO fields into the entity</li>
      *   <li>Applies "before create" lifecycle events</li>
-     *   <li>Delegates persistence to {@link #internalCreate(INPUT)}</li>
+     *   <li>Delegates persistence to {@link #internalCreate(ENTITY)}</li>
      *   <li>Applies "after create" lifecycle events</li>
      *   <li>Maps entity to output DTO</li>
      * </ol>
@@ -246,7 +246,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      *   <li>Loads the existing entity</li>
      *   <li>Maps updated DTO fields</li>
      *   <li>Triggers lifecycle events</li>
-     *   <li>Delegates to {@link #internalUpdate(INPUT)}</li>
+     *   <li>Delegates to {@link #internalUpdate(ENTITY)}</li>
      *   <li>Maps updated entity to output DTO</li>
      * </ol>
      */
@@ -281,7 +281,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      * <ol>
      *   <li>Finds the entity</li>
      *   <li>Triggers "before delete" event</li>
-     *   <li>Delegates deletion to {@link #internalDelete(ID)}</li>
+     *   <li>Delegates deletion to {@link #internalDelete(ENTITY)}</li>
      *   <li>Triggers "after delete" event</li>
      * </ol>
      */

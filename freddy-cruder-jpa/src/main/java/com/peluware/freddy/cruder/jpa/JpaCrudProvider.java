@@ -173,18 +173,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected <T> T withTransaction(Supplier<T> function) {
-        var transaction = entityManager.getTransaction();
-        try {
-            transaction.begin();
-            T result = function.get();
-            transaction.commit();
-            return result;
-        } catch (RuntimeException e) {
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
-            throw e;
-        }
+        return JpaUtils.withTransaction(entityManager.getTransaction(), function);
     }
 
     /**
