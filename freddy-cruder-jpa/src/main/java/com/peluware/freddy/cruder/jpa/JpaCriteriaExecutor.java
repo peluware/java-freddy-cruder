@@ -58,8 +58,18 @@ public interface JpaCriteriaExecutor<PATH, RESULT, RETURN> {
     }
 
     static <PATH> JpaCriteriaExecutor<PATH, Long, Boolean> exists() {
-        JpaCriteriaExecutor<PATH, Long, Long> countSpec = count();
-        return (cq, root, em, hints) -> countSpec.exec(cq, root, em, hints) > 0;
+        return (cq, _, em, hints) -> {
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            cq.select(cb.literal(1L));               // SELECT 1, no count, no entidad
+
+            TypedQuery<Long> query = em.createQuery(cq);
+            hints.forEach(query::setHint);
+
+            return !query
+                .setMaxResults(1)                    // LIMIT 1 → short-circuit
+                .getResultList()
+                .isEmpty();
+        };
     }
 
     static <ROOT> JpaCriteriaExecutor<ROOT, ROOT, Optional<ROOT>> first() {
@@ -72,7 +82,8 @@ public interface JpaCriteriaExecutor<PATH, RESULT, RETURN> {
 
             return query
                 .setMaxResults(1)
-                .getResultStream()
+                .getResultList()
+                .stream()
                 .findFirst();
         };
     }

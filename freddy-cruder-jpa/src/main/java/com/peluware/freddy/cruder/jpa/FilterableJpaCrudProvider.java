@@ -329,7 +329,7 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      * @return an equality predicate on the ID field
      */
     protected Predicate buildIdPredicate(Root<ENTITY> root, CriteriaBuilder cb, ID id) {
-        var idFieldName = JpaUtils.getIdFieldName(entityClass);
+        var idFieldName = JpaUtils.getIdFieldName(entityManager.getMetamodel(), entityClass);
         return cb.equal(root.get(idFieldName), id);
     }
 

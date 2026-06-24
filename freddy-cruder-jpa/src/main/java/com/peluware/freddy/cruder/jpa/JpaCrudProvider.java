@@ -181,6 +181,6 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * Can be overridden if the ID field is not named conventionally.
      */
     protected String getEntityIdFieldName() {
-        return JpaUtils.getIdFieldName(entityClass);
+        return JpaUtils.getIdFieldName(entityManager.getMetamodel(), entityClass);
     }
 }
