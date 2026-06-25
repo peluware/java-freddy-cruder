@@ -6,9 +6,6 @@ import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.freddy.cruder.OwnedEntityCrudProvider;
-import com.peluware.omnisearch.OmniSearchBaseOptions;
-import com.peluware.omnisearch.jpa.DefaultJpaOmniSearchPredicateBuilder;
-import com.peluware.omnisearch.jpa.JpaOmniSearchPredicateBuilder;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
@@ -22,7 +19,7 @@ import java.util.function.Supplier;
 /**
  * JPA-specific implementation of {@link OwnedEntityCrudProvider} that builds all queries
  * directly via the JPA Criteria API, delegating predicate construction to a
- * {@link JpaOmniSearchPredicateBuilder}.
+ * {@link SearchPredicateBuilder}.
  *
  * <p>
  * This is the owned-resource counterpart of {@link FilterableJpaCrudProvider}. Every
@@ -37,6 +34,12 @@ import java.util.function.Supplier;
  * concerns such as soft-delete filters or row-level security.
  * </p>
  *
+ * <p>
+ * The default {@link SearchPredicateBuilder} delegates to {@code omni-search-jpa} via
+ * {@link OmniSearchPredicateAdapter}. Provide a custom implementation to use a
+ * different search strategy without any dependency on {@code omni-search}.
+ * </p>
+ *
  * @param <ENTITY>   the JPA entity type
  * @param <OWNER_ID> the identifier type of the owning (parent) resource
  * @param <ID>       the entity identifier type
@@ -46,47 +49,47 @@ import java.util.function.Supplier;
 public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT> extends OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT> {
 
     protected final EntityManager entityManager;
-    protected final JpaOmniSearchPredicateBuilder predicateBuilder;
+    protected final SearchPredicateBuilder searchPredicateBuilder;
 
     // ------------------------------------------------------------
     // CONSTRUCTORS — explicit entityClass
     // ------------------------------------------------------------
 
     /**
-     * Creates a provider with explicit entity class, custom predicate builder and lifecycle events.
+     * Creates a provider with explicit entity class, custom search predicate builder and lifecycle events.
      *
-     * @param entityManager    the JPA entity manager
-     * @param predicateBuilder the predicate builder used for search and RSQL filtering
-     * @param entityClass      the entity class managed by this provider
-     * @param events           the CRUD lifecycle events handler
+     * @param entityManager          the JPA entity manager
+     * @param searchPredicateBuilder the predicate builder used for search and RSQL filtering
+     * @param entityClass            the entity class managed by this provider
+     * @param events                 the CRUD lifecycle events handler
      */
-    public FilterableOwnedJpaCrudProvider(EntityManager entityManager, JpaOmniSearchPredicateBuilder predicateBuilder, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public FilterableOwnedJpaCrudProvider(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(entityClass, events);
         this.entityManager = entityManager;
-        this.predicateBuilder = predicateBuilder;
+        this.searchPredicateBuilder = searchPredicateBuilder;
     }
 
     /**
-     * Creates a provider with explicit entity class and custom predicate builder,
+     * Creates a provider with explicit entity class and custom search predicate builder,
      * using default lifecycle events (no-op).
      *
-     * @param entityManager    the JPA entity manager
-     * @param predicateBuilder the predicate builder used for search and RSQL filtering
-     * @param entityClass      the entity class managed by this provider
+     * @param entityManager          the JPA entity manager
+     * @param searchPredicateBuilder the predicate builder used for search and RSQL filtering
+     * @param entityClass            the entity class managed by this provider
      */
-    public FilterableOwnedJpaCrudProvider(EntityManager entityManager, JpaOmniSearchPredicateBuilder predicateBuilder, Class<ENTITY> entityClass) {
-        this(entityManager, predicateBuilder, entityClass, EntityCrudEvents.getDefault());
+    public FilterableOwnedJpaCrudProvider(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass) {
+        this(entityManager, searchPredicateBuilder, entityClass, EntityCrudEvents.getDefault());
     }
 
     /**
-     * Creates a provider with explicit entity class, using a default {@link DefaultJpaOmniSearchPredicateBuilder}
+     * Creates a provider with explicit entity class, using the default {@link OmniSearchPredicateAdapter}
      * and default lifecycle events (no-op).
      *
      * @param entityManager the JPA entity manager
      * @param entityClass   the entity class managed by this provider
      */
     public FilterableOwnedJpaCrudProvider(EntityManager entityManager, Class<ENTITY> entityClass) {
-        this(entityManager, new DefaultJpaOmniSearchPredicateBuilder(), entityClass);
+        this(entityManager, OmniSearchPredicateAdapter.ofDefault(), entityClass);
     }
 
     // ------------------------------------------------------------
@@ -95,38 +98,38 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
 
     /**
      * Creates a provider by resolving the entity class automatically from the generic type
-     * hierarchy via reflection, using a custom predicate builder and lifecycle events.
+     * hierarchy via reflection, using a custom search predicate builder and lifecycle events.
      *
-     * @param entityManager    the JPA entity manager
-     * @param predicateBuilder the predicate builder used for search and RSQL filtering
-     * @param events           the CRUD lifecycle events handler
+     * @param entityManager          the JPA entity manager
+     * @param searchPredicateBuilder the predicate builder used for search and RSQL filtering
+     * @param events                 the CRUD lifecycle events handler
      */
-    public FilterableOwnedJpaCrudProvider(EntityManager entityManager, JpaOmniSearchPredicateBuilder predicateBuilder, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public FilterableOwnedJpaCrudProvider(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(events);
         this.entityManager = entityManager;
-        this.predicateBuilder = predicateBuilder;
+        this.searchPredicateBuilder = searchPredicateBuilder;
     }
 
     /**
      * Creates a provider by resolving the entity class automatically from the generic type
-     * hierarchy via reflection, using a custom predicate builder and default lifecycle events (no-op).
+     * hierarchy via reflection, using a custom search predicate builder and default lifecycle events (no-op).
      *
-     * @param entityManager    the JPA entity manager
-     * @param predicateBuilder the predicate builder used for search and RSQL filtering
+     * @param entityManager          the JPA entity manager
+     * @param searchPredicateBuilder the predicate builder used for search and RSQL filtering
      */
-    public FilterableOwnedJpaCrudProvider(EntityManager entityManager, JpaOmniSearchPredicateBuilder predicateBuilder) {
-        this(entityManager, predicateBuilder, EntityCrudEvents.getDefault());
+    public FilterableOwnedJpaCrudProvider(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder) {
+        this(entityManager, searchPredicateBuilder, EntityCrudEvents.getDefault());
     }
 
     /**
      * Creates a provider by resolving the entity class automatically from the generic type
-     * hierarchy via reflection, using a default {@link DefaultJpaOmniSearchPredicateBuilder}
+     * hierarchy via reflection, using the default {@link OmniSearchPredicateAdapter}
      * and default lifecycle events (no-op).
      *
      * @param entityManager the JPA entity manager
      */
     public FilterableOwnedJpaCrudProvider(EntityManager entityManager) {
-        this(entityManager, new DefaultJpaOmniSearchPredicateBuilder());
+        this(entityManager, OmniSearchPredicateAdapter.ofDefault());
     }
 
     // ------------------------------------------------------------
@@ -155,10 +158,10 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     protected Page<ENTITY> internalPage(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var content = runQuery(
             entityClass,
-            (root, cb) -> cb.and(buildOwnerPredicate(root, cb, ownerId), buildOmniSearchPredicate(root, cb, search, query)),
+            (root, cb) -> cb.and(buildOwnerPredicate(root, cb, ownerId), buildSearchPredicate(root, cb, search, query)),
             JpaCriteriaExecutor.list(sort, pagination)
         );
-        return com.peluware.domain.Page.deferred(
+        return Page.deferred(
             content,
             pagination,
             sort,
@@ -173,7 +176,7 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     protected long internalCount(OWNER_ID ownerId, @Nullable String search, @Nullable String query) {
         return runQuery(
             Long.class,
-            (root, cb) -> cb.and(buildOwnerPredicate(root, cb, ownerId), buildOmniSearchPredicate(root, cb, search, query)),
+            (root, cb) -> cb.and(buildOwnerPredicate(root, cb, ownerId), buildSearchPredicate(root, cb, search, query)),
             JpaCriteriaExecutor.count()
         );
     }
@@ -329,7 +332,7 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
 
     /**
      * Builds a predicate for full-text search and RSQL filtering using the configured
-     * {@link JpaOmniSearchPredicateBuilder}.
+     * {@link SearchPredicateBuilder}.
      *
      * @param root   the query root
      * @param cb     the criteria builder
@@ -337,13 +340,8 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
      * @param query  RSQL query expression, or {@code null}
      * @return the resulting predicate
      */
-    protected Predicate buildOmniSearchPredicate(Root<ENTITY> root, CriteriaBuilder cb, @Nullable String search, @Nullable String query) {
-        return predicateBuilder.buildPredicate(
-            root,
-            new OmniSearchBaseOptions().search(search).query(query),
-            cb,
-            entityManager.getMetamodel()
-        );
+    protected Predicate buildSearchPredicate(Root<ENTITY> root, CriteriaBuilder cb, @Nullable String search, @Nullable String query) {
+        return searchPredicateBuilder.build(root, cb, entityManager.getMetamodel(), search, query);
     }
 
     /**
