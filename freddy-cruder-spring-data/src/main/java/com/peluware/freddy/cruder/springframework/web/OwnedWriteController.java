@@ -1,6 +1,6 @@
 package com.peluware.freddy.cruder.springframework.web;
 
-import com.peluware.freddy.cruder.springframework.SpringOwnedCrudProvider;
+import com.peluware.freddy.cruder.OwnedWriteProvider;
 
 public interface OwnedWriteController<OWNER_ID, ID, INPUT, OUTPUT> extends
         OwnedCreateController<OWNER_ID, INPUT, OUTPUT>,
@@ -8,5 +8,5 @@ public interface OwnedWriteController<OWNER_ID, ID, INPUT, OUTPUT> extends
         OwnedDeleteController<OWNER_ID, ID> {
 
     @Override
-    SpringOwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> getService();
+    OwnedWriteProvider<OWNER_ID, ID, INPUT, OUTPUT> getService();
 }

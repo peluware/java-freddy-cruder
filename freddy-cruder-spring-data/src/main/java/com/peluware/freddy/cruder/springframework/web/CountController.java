@@ -2,8 +2,8 @@ package com.peluware.freddy.cruder.springframework.web;
 
 
 import com.peluware.freddy.cruder.CrudContext;
+import com.peluware.freddy.cruder.CountProvider;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
-import com.peluware.freddy.cruder.springframework.SpringCrudProvider;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 public interface CountController {
 
-    SpringCrudProvider<?, ?, ?> getService();
+    CountProvider getService();
 
     @GetMapping("/count")
     default ResponseEntity<Long> count(

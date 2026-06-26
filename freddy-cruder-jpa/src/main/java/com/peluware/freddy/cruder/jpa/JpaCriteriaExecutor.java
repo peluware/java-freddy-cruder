@@ -12,17 +12,18 @@ import jakarta.persistence.criteria.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @FunctionalInterface
-public interface JpaCriteriaExecutor<PATH, RESULT, RETURN> {
+public interface JpaCriteriaExecutor<SELECTED, RESULT, RETURN> {
 
-    RETURN exec(CriteriaQuery<RESULT> cq, Path<PATH> root, EntityManager entityManager, Map<String, Object> hints);
+    RETURN exec(CriteriaQuery<RESULT> cq, Path<SELECTED> path, EntityManager entityManager, Map<String, Object> hints);
 
-    default RETURN exec(CriteriaQuery<RESULT> cq, Path<PATH> root, EntityManager entityManager) {
-        return exec(cq, root, entityManager, Map.of());
+    default RETURN exec(CriteriaQuery<RESULT> cq, Path<SELECTED> path, EntityManager entityManager) {
+        return exec(cq, path, entityManager, Map.of());
     }
 
-    static <ROOT> JpaCriteriaExecutor<ROOT, ROOT, List<ROOT>> list(Sort sort, Pagination pagination) {
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, SELECTED, List<SELECTED>> list(Sort sort, Pagination pagination) {
         return (cq, root, em, hints) -> {
             CriteriaBuilder cb = em.getCriteriaBuilder();
             cq.select(root);
@@ -31,8 +32,7 @@ public interface JpaCriteriaExecutor<PATH, RESULT, RETURN> {
                 cq.orderBy(JpaUtils.getOrders(sort, root, cb, em.getMetamodel()));
             }
 
-            TypedQuery<ROOT> query = em.createQuery(cq);
-            hints.forEach(query::setHint);
+            TypedQuery<SELECTED> query = createTypedQuery(cq, em, hints);
 
             if (pagination.isPaginated()) {
                 query
@@ -44,26 +44,35 @@ public interface JpaCriteriaExecutor<PATH, RESULT, RETURN> {
         };
     }
 
-    static <ROOT> JpaCriteriaExecutor<ROOT, Long, Long> count() {
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, SELECTED, List<SELECTED>> list(Sort sort) {
+        return list(sort, Pagination.unpaginated());
+    }
+
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, SELECTED, List<SELECTED>> list(Pagination pagination) {
+        return list(Sort.unsorted(), pagination);
+    }
+
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, SELECTED, List<SELECTED>> list() {
+        return list(Sort.unsorted(), Pagination.unpaginated());
+    }
+
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, Long, Long> count() {
         return (cq, root, em, hints) -> {
             CriteriaBuilder cb = em.getCriteriaBuilder();
             cq.select(cb.count(root));
 
-            TypedQuery<Long> query = em.createQuery(cq);
-
-            hints.forEach(query::setHint);
+            TypedQuery<Long> query = createTypedQuery(cq, em, hints);
 
             return query.getSingleResult();
         };
     }
 
-    static <PATH> JpaCriteriaExecutor<PATH, Long, Boolean> exists() {
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, Long, Boolean> exists() {
         return (cq, _, em, hints) -> {
             CriteriaBuilder cb = em.getCriteriaBuilder();
             cq.select(cb.literal(1L));               // SELECT 1, no count, no entidad
 
-            TypedQuery<Long> query = em.createQuery(cq);
-            hints.forEach(query::setHint);
+            TypedQuery<Long> query = createTypedQuery(cq, em, hints);
 
             return !query
                 .setMaxResults(1)                    // LIMIT 1 → short-circuit
@@ -72,13 +81,11 @@ public interface JpaCriteriaExecutor<PATH, RESULT, RETURN> {
         };
     }
 
-    static <ROOT> JpaCriteriaExecutor<ROOT, ROOT, Optional<ROOT>> first() {
-        return (cq, root, entityManager, hints) -> {
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, SELECTED, Optional<SELECTED>> first() {
+        return (cq, root, em, hints) -> {
             cq.select(root);
 
-            TypedQuery<ROOT> query = entityManager.createQuery(cq);
-
-            hints.forEach(query::setHint);
+            TypedQuery<SELECTED> query = createTypedQuery(cq, em, hints);
 
             return query
                 .setMaxResults(1)
@@ -86,5 +93,33 @@ public interface JpaCriteriaExecutor<PATH, RESULT, RETURN> {
                 .stream()
                 .findFirst();
         };
+    }
+
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, SELECTED, SELECTED> one() {
+        return (cq, path, em, hints) -> {
+            cq.select(path);
+
+            TypedQuery<SELECTED> query = createTypedQuery(cq, em, hints);
+
+            return query
+                .getSingleResult();
+        };
+    }
+
+    static <SELECTED> JpaCriteriaExecutor<SELECTED, SELECTED, Stream<SELECTED>> stream() {
+        return (cq, path, em, hints) -> {
+            cq.select(path);
+
+            TypedQuery<SELECTED> query = createTypedQuery(cq, em, hints);
+
+            return query
+                .getResultStream();
+        };
+    }
+
+    private static <T> TypedQuery<T> createTypedQuery(CriteriaQuery<T> cq, EntityManager em, Map<String, Object> hints) {
+        TypedQuery<T> query = em.createQuery(cq);
+        hints.forEach(query::setHint);
+        return query;
     }
 }

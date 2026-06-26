@@ -4,74 +4,135 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
+import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
-import com.peluware.omnisearch.EntityOmniSearch;
-import com.peluware.omnisearch.OmniSearch;
-import com.peluware.omnisearch.OmniSearchOptions;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.repository.CrudRepository;
 
-public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends SpringEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> {
+/**
+ * Spring Data implementation of {@link EntityCrudProvider} that delegates persistence
+ * to a {@link CrudRepository} and search/pagination to an {@link SearchRepository}.
+ *
+ * <p>
+ * When your repository implements both contracts (e.g. via {@link CrudSearchRepository}),
+ * use the single-argument constructors to avoid passing the same object twice.
+ * </p>
+ *
+ * @param <ENTITY> the JPA entity type
+ * @param <ID>     the entity identifier type
+ * @param <INPUT>  the input DTO type for create/update operations
+ * @param <OUTPUT> the output DTO or projection type
+ */
+public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> {
 
     protected final CrudRepository<ENTITY, ID> repository;
-    protected final EntityOmniSearch<ENTITY> entityOmniSearch;
+    protected final SearchRepository<ENTITY> searchRepository;
 
-    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    // ------------------------------------------------------------
+    // CONSTRUCTORS — explicit entityClass
+    // ------------------------------------------------------------
+
+    /**
+     * Creates a provider with explicit entity class, separate repository and search adapter.
+     *
+     * @param repository           the Spring Data repository for persistence operations
+     * @param searchRepository the search and count adapter
+     * @param entityClass          the entity class managed by this provider
+     * @param events               the CRUD lifecycle events handler
+     */
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(entityClass, events);
         this.repository = repository;
-        this.entityOmniSearch = entityOmniSearch;
+        this.searchRepository = searchRepository;
     }
 
-    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, Class<ENTITY> entityClass) {
-        this(repository, entityOmniSearch, entityClass, EntityCrudEvents.getDefault());
+    /**
+     * Creates a provider with explicit entity class and default lifecycle events (no-op).
+     *
+     * @param repository             the Spring Data repository for persistence operations
+     * @param searchRepository the search and count adapter
+     * @param entityClass            the entity class managed by this provider
+     */
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, Class<ENTITY> entityClass) {
+        this(repository, searchRepository, entityClass, EntityCrudEvents.getDefault());
     }
 
-    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
-        super(entityClass, events);
-        this.repository = repository;
-        this.entityOmniSearch = omniSearch.forEntity(entityClass);
-    }
-
-    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, Class<ENTITY> entityClass) {
-        this(repository, omniSearch, entityClass, EntityCrudEvents.getDefault());
-    }
-
+    /**
+     * Creates a provider with explicit entity class from a {@link CrudSearchRepository},
+     * which implements both {@link CrudRepository} and {@link SearchRepository}.
+     *
+     * @param repository  the repository implementing both persistence and search
+     * @param entityClass the entity class managed by this provider
+     * @param events      the CRUD lifecycle events handler
+     */
     public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         this(repository, repository, entityClass, events);
     }
 
+    /**
+     * Creates a provider with explicit entity class from a {@link CrudSearchRepository}
+     * and default lifecycle events (no-op).
+     *
+     * @param repository  the repository implementing both persistence and search
+     * @param entityClass the entity class managed by this provider
+     */
     public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, Class<ENTITY> entityClass) {
         this(repository, repository, entityClass, EntityCrudEvents.getDefault());
     }
 
+    // ------------------------------------------------------------
+    // CONSTRUCTORS — reflection-based entityClass
+    // ------------------------------------------------------------
 
-    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    /**
+     * Creates a provider by resolving the entity class automatically from the generic type
+     * hierarchy via reflection, using separate repository and search adapter.
+     *
+     * @param repository             the Spring Data repository for persistence operations
+     * @param searchRepository the search and count adapter
+     * @param events                 the CRUD lifecycle events handler
+     */
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(events);
         this.repository = repository;
-        this.entityOmniSearch = entityOmniSearch;
+        this.searchRepository = searchRepository;
     }
 
-    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, EntityOmniSearch<ENTITY> entityOmniSearch) {
-        this(repository, entityOmniSearch, EntityCrudEvents.getDefault());
+    /**
+     * Creates a provider by resolving the entity class automatically from the generic type
+     * hierarchy via reflection, with default lifecycle events (no-op).
+     *
+     * @param repository             the Spring Data repository for persistence operations
+     * @param searchRepository the search and count adapter
+     */
+    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository) {
+        this(repository, searchRepository, EntityCrudEvents.getDefault());
     }
 
-    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch, EntityCrudEvents<ENTITY, ID, INPUT> events) {
-        super(events);
-        this.repository = repository;
-        this.entityOmniSearch = omniSearch.forEntity(super.entityClass);
-    }
-
-    public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, OmniSearch omniSearch) {
-        this(repository, omniSearch, EntityCrudEvents.getDefault());
-    }
-
+    /**
+     * Creates a provider by resolving the entity class automatically from the generic type
+     * hierarchy via reflection, from a {@link CrudSearchRepository}.
+     *
+     * @param repository the repository implementing both persistence and search
+     * @param events     the CRUD lifecycle events handler
+     */
     public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         this(repository, repository, events);
     }
 
+    /**
+     * Creates a provider by resolving the entity class automatically from the generic type
+     * hierarchy via reflection, from a {@link CrudSearchRepository} and default lifecycle events (no-op).
+     *
+     * @param repository the repository implementing both persistence and search
+     */
     public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository) {
         this(repository, repository, EntityCrudEvents.getDefault());
     }
+
+    // ------------------------------------------------------------
+    // INTERNAL CRUD IMPLEMENTATIONS
+    // ------------------------------------------------------------
 
     @Override
     protected ENTITY internalFind(ID id) throws NotFoundEntityException {
@@ -81,20 +142,12 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
 
     @Override
     protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
-        return entityOmniSearch.page(new OmniSearchOptions()
-            .search(search)
-            .query(query)
-            .pagination(pagination)
-            .sort(sort)
-        );
+        return searchRepository.findBySearch(search, query, pagination, sort);
     }
 
     @Override
     protected long internalCount(@Nullable String search, @Nullable String query) {
-        return entityOmniSearch.count(new OmniSearchOptions()
-            .search(search)
-            .query(query)
-        );
+        return searchRepository.countBySearch(search, query);
     }
 
     @Override

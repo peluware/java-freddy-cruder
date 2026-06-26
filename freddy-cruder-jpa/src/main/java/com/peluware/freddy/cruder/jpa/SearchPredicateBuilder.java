@@ -39,6 +39,5 @@ public interface SearchPredicateBuilder {
      * @param <E>      the entity type of the query root
      * @return a predicate to apply to the query; must not be {@code null}
      */
-    <E> Predicate build(From<?, E> root, CriteriaBuilder cb, Metamodel metamodel,
-                        @Nullable String search, @Nullable String query);
+    <E> Predicate build(From<?, E> root, CriteriaBuilder cb, Metamodel metamodel, @Nullable String search, @Nullable String query);
 }

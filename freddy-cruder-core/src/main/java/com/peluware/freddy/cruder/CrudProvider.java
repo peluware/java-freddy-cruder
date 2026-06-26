@@ -1,135 +1,24 @@
 package com.peluware.freddy.cruder;
 
-import com.peluware.domain.Page;
-import com.peluware.domain.Pagination;
-import com.peluware.domain.Sort;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-import org.jspecify.annotations.Nullable;
-
 /**
- * Proveedor genérico CRUD diseñado para desacoplar la lógica de aplicación
- * de los detalles de persistencia.
+ * Generic CRUD provider designed to decouple application logic from persistence details.
  *
  * <p>
- * Las implementaciones definen cómo se crean, recuperan, actualizan,
- * eliminan y listan entidades, sin imponer restricciones sobre el framework
- * o la tecnología subyacente.
+ * Implementations define how entities are created, retrieved, updated, deleted, and listed,
+ * without imposing constraints on the underlying framework or technology.
  * </p>
  *
  * <p>
- * Este contrato soporta extensibilidad mediante {@link CrudOptions},
- * permitiendo pasar metadatos adicionales para modificar el comportamiento
- * de cada operación (por ejemplo: incluir relaciones, ejecución parcial,
- * flags de auditoría, soft-delete, hints de optimización, etc).
+ * This contract supports extensibility through {@link CrudOptions}, allowing additional
+ * metadata to be passed to modify the behavior of each operation (e.g. relation loading,
+ * partial execution, audit flags, soft-delete, optimization hints, etc.).
  * </p>
  *
- * <p>
- * Todos los métodos poseen una versión simplificada que utiliza
- * {@link CrudOptions#DEFAULT} por defecto para mantener compatibilidad
- * hacia atrás y simplicidad de uso.
- * </p>
- *
- * @param <ID>     Tipo del identificador único del recurso.
- * @param <INPUT>  Tipo del DTO de entrada usado para crear o actualizar recursos.
- * @param <OUTPUT> Tipo del DTO de salida devuelto al consumidor.
+ * @param <ID>     the unique identifier type of the resource
+ * @param <INPUT>  the input DTO type used to create or update resources
+ * @param <OUTPUT> the output DTO type returned to the consumer
+ * @see ReadProvider
+ * @see WriteProvider
  */
-public interface CrudProvider<ID, INPUT, OUTPUT> {
-
-    // ==================================================
-    // PAGE
-    // ==================================================
-
-    /**
-     * Retrieves a paginated list of resources based on optional search criteria
-     * and filtering expression.
-     *
-     * @param search     optional text-based search (may be {@code null})
-     * @param query      additional filtering expression, may be {@code null}
-     * @param pagination pagination settings, or {@code null} for unpaginated results
-     * @param sort       sorting configuration, or {@code null} for unsorted results
-     * @return a {@link Page} containing the paginated result set
-     */
-    Page<OUTPUT> page(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort);
-
-    // ==================================================
-    // FIND
-    // ==================================================
-
-    /**
-     * Finds a resource by its identifier.
-     *
-     * @param id unique identifier of the resource
-     * @return the resource mapped to its output representation
-     * @throws NotFoundException if no resource exists with the given identifier
-     */
-    OUTPUT find(@NotNull ID id) throws NotFoundException;
-
-
-    // ==================================================
-    // COUNT
-    // ==================================================
-
-    /**
-     * Counts the number of resources matching optional search and query filters.
-     *
-     * @param search optional text-based search (may be {@code null})
-     * @param query  optional additional query expression (may be {@code null})
-     * @return total number of resources matching the criteria
-     */
-    long count(@Nullable String search, @Nullable String query);
-
-
-    // ==================================================
-    // EXISTS
-    // ==================================================
-
-    /**
-     * Checks whether a resource with the given identifier exists.
-     *
-     * @param id unique identifier of the resource
-     * @return {@code true} if the resource exists, otherwise {@code false}
-     */
-    boolean exists(@NotNull ID id);
-
-
-    // ==================================================
-    // CREATE
-    // ==================================================
-
-    /**
-     * Creates a new resource using the provided input DTO.
-     *
-     * @param input input DTO containing creation data
-     * @return the newly created resource mapped to its output representation
-     */
-    OUTPUT create(@NotNull @Valid INPUT input);
-
-
-    // ==================================================
-    // UPDATE
-    // ==================================================
-
-    /**
-     * Updates an existing resource identified by the given ID.
-     *
-     * @param id    unique identifier of the resource to update
-     * @param input input DTO containing updated data
-     * @return the updated resource mapped to its output representation
-     * @throws NotFoundException if no resource exists with the given ID
-     */
-    OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException;
-
-
-    // ==================================================
-    // DELETE
-    // ==================================================
-
-    /**
-     * Deletes the resource identified by the given ID.
-     *
-     * @param id unique identifier of the resource to delete
-     * @throws NotFoundException if the resource does not exist
-     */
-    void delete(@NotNull ID id) throws NotFoundException;
+public interface CrudProvider<ID, INPUT, OUTPUT> extends ReadProvider<ID, OUTPUT>, WriteProvider<ID, INPUT, OUTPUT> {
 }

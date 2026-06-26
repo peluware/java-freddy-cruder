@@ -6,6 +6,7 @@ import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.freddy.cruder.OwnedEntityCrudProvider;
+import com.peluware.freddy.cruder.OwnedId;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
@@ -147,7 +148,7 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
             entityClass,
             (root, cb) -> cb.and(buildOwnerPredicate(root, cb, ownerId), buildIdPredicate(root, cb, id)),
             JpaCriteriaExecutor.first()
-        ).orElseThrow(() -> new NotFoundEntityException(entityClass, id));
+        ).orElseThrow(() -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id)));
     }
 
     /**
@@ -223,7 +224,7 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
      */
     @Override
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaUtils.withTransaction(entityManager.getTransaction(), function);
+        return JpaUtils.requireTransaction(entityManager, function);
     }
 
     // ------------------------------------------------------------
@@ -270,13 +271,14 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
      * @return the query result
      */
     protected final <T, R> R runQuery(Class<T> resultType, BiFunction<Root<ENTITY>, CriteriaBuilder, Predicate> predicateLoader, JpaCriteriaExecutor<ENTITY, T, R> executor, Map<String, Object> hints) {
-        var cb = entityManager.getCriteriaBuilder();
-        var cq = cb.createQuery(resultType);
-        var root = cq.from(entityClass);
-
-        cq.where(predicateFilter(root, cb, predicateLoader.apply(root, cb)));
-
-        return executor.exec(cq, root, entityManager, hints);
+        return JpaQueryHelpers.query(
+            entityManager,
+            entityClass,
+            resultType,
+            (root, cb) -> predicateFilter(root, cb, predicateLoader.apply(root, cb)),
+            executor,
+            hints
+        );
     }
 
     /**

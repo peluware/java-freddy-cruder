@@ -10,16 +10,18 @@ Freddy Cruder is a modular, framework-agnostic Java library that standardizes an
 
 ## Modules
 
-The library is split into three independent modules. Each one adds a layer on top of the previous:
+The library is split into three independent modules. `freddy-cruder-jpa` and `freddy-cruder-spring-data` both build on `freddy-cruder-core` and can be used independently of each other:
 
 ```
-freddy-cruder-core  ←  freddy-cruder-jpa  ←  freddy-cruder-spring-data
+              freddy-cruder-core
+             /                  \
+freddy-cruder-jpa    freddy-cruder-spring-data
 ```
 
 | Module | Description |
 |--------|-------------|
 | `freddy-cruder-core` | Core contracts and abstractions. No framework dependencies. |
-| `freddy-cruder-jpa` | JPA implementation with full-text search and RSQL filtering via `omni-search-jpa`. |
+| `freddy-cruder-jpa` | JPA implementation via Criteria API. `omni-search-jpa` is an optional integration for full-text search and RSQL filtering. |
 | `freddy-cruder-spring-data` | Spring Data integration with REST controllers, `CrudRepository` support, and `SpringCrudOptions`. |
 
 ---
@@ -33,7 +35,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>1.3.1</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -42,7 +44,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>1.3.1</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -51,7 +53,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>1.3.1</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -59,19 +61,21 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 
 ## Core Concepts
 
-### `CrudProvider<ID, INPUT, OUTPUT>`
+### Provider interfaces
 
-The central interface. Defines the seven standard operations:
+`CrudProvider<ID, INPUT, OUTPUT>` and `OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>` are composed from atomic `@FunctionalInterface` providers, one per operation:
 
-| Method | Description |
-|--------|-------------|
-| `page(search, query, pagination, sort)` | Paginated list with optional full-text search and RSQL filter |
-| `find(id)` | Find by ID, throws `NotFoundException` if not found |
-| `count(search, query)` | Count matching entities |
-| `exists(id)` | Check existence by ID |
-| `create(input)` | Create a new entity from an input DTO |
-| `update(id, input)` | Update an existing entity |
-| `delete(id)` | Delete by ID |
+| Atomic provider | Operation |
+|----------------|-----------|
+| `PageProvider` | Paginated list with optional full-text search and RSQL filter |
+| `FindProvider` | Find by ID, throws `NotFoundException` if not found |
+| `CountProvider` | Count matching entities |
+| `ExistsProvider` | Check existence by ID |
+| `CreateProvider` | Create a new entity from an input DTO |
+| `UpdateProvider` | Update an existing entity |
+| `DeleteProvider` | Delete by ID |
+
+Each has an `Owned*` counterpart that adds an `OWNER_ID` scope parameter. Controllers and services can declare only the capabilities they actually need.
 
 ### `EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>`
 
@@ -164,11 +168,11 @@ create(input)
 
 ### 1. Define your service
 
-Extend `SpringRespositoryCrudProvider` and implement the two mapping methods. Everything else is handled for you.
+Extend `SpringRepositoryCrudProvider` and implement the two mapping methods. Everything else is handled for you.
 
 ```java
 @Service
-public class ProductService extends SpringRespositoryCrudProvider<Product, Long, ProductInput, ProductOutput> {
+public class ProductService extends SpringRepositoryCrudProvider<Product, Long, ProductInput, ProductOutput> {
 
     public ProductService(CrudSearchRepository<Product, Long> repository) {
         super(repository, Product.class);
@@ -203,7 +207,7 @@ public class ProductController implements CrudController<Long, ProductInput, Pro
     }
 
     @Override
-    public SpringCrudProvider<Long, ProductInput, ProductOutput> getService() {
+    public CrudProvider<Long, ProductInput, ProductOutput> getService() {
         return service;
     }
 }
@@ -227,7 +231,7 @@ Instead of `CrudController`, compose only the operations you need:
 
 ```java
 // Read-only resource
-public class ProductController implements PageController<Long, ProductOutput>,
+public class ProductController implements PageController<ProductOutput>,
                                           FindController<Long, ProductOutput> { ... }
 
 // Write-only resource
@@ -239,7 +243,7 @@ public class ProductController implements CreateController<ProductInput, Product
 
 ## Multi-Tenant / Owned Resources
 
-Use `OwnedCrudProvider` and its Spring counterpart `SpringOwnedCrudProvider` for resources scoped to an owner. All endpoints receive an extra `@PathVariable OWNER_ID ownerId`:
+Use `OwnedCrudProvider` for resources scoped to an owner. All endpoints receive an extra `@PathVariable OWNER_ID ownerId`:
 
 ```java
 @RestController
@@ -254,15 +258,15 @@ public class OrderController implements OwnedCrudController<Long, Long, OrderInp
 ## Class Hierarchy
 
 ```
-CrudProvider<ID, INPUT, OUTPUT>
-└── EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>          (core — abstract)
-    ├── JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>          (jpa — abstract)
-    └── SpringEntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> (spring-data — abstract)
-        └── SpringRespositoryCrudProvider<...>              (spring-data — abstract, uses CrudRepository)
+CrudProvider<ID, INPUT, OUTPUT>                                        (core — interface)
+└── EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>                      (core — abstract)
+    ├── JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>                     (jpa — abstract)
+    │   └── FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>       (jpa — abstract)
+    └── SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT>        (spring-data — abstract)
 
-OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>
-└── OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>  (core — abstract)
-    └── SpringOwnedEntityCrudProvider<...>                         (spring-data — abstract)
+OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>                         (core — interface)
+└── OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>       (core — abstract)
+    └── FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>  (jpa — abstract)
 ```
 
 ---

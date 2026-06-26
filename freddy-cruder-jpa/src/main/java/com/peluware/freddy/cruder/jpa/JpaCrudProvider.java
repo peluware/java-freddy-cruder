@@ -7,6 +7,9 @@ import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;
@@ -143,14 +146,19 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
-        var cb = entityManager.getCriteriaBuilder();
-        var cq = cb.createQuery(entityClass);
-        var root = cq.from(entityClass);
-
-        cq.where(searchPredicateBuilder.build(root, cb, entityManager.getMetamodel(), search, query));
-
-        var content = JpaCriteriaExecutor.<ENTITY>list(sort, pagination).exec(cq, root, entityManager);
-        return Page.deferred(content, pagination, sort, () -> internalCount(search, query));
+        var content = JpaQueryHelpers.query(
+            entityManager,
+            entityClass,
+            entityClass,
+            (root, cb) -> searchPredicateBuilder.build(root, cb, entityManager.getMetamodel(), search, query),
+            JpaCriteriaExecutor.list(sort, pagination)
+        );
+        return Page.deferred(
+            content,
+            pagination,
+            sort,
+            () -> internalCount(search, query)
+        );
     }
 
     /**
@@ -158,13 +166,13 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected long internalCount(@Nullable String search, @Nullable String query) {
-        var cb = entityManager.getCriteriaBuilder();
-        var cq = cb.createQuery(Long.class);
-        var root = cq.from(entityClass);
-
-        cq.where(searchPredicateBuilder.build(root, cb, entityManager.getMetamodel(), search, query));
-
-        return JpaCriteriaExecutor.<ENTITY>count().exec(cq, root, entityManager);
+        return JpaQueryHelpers.query(
+            entityManager,
+            entityClass,
+            Long.class,
+            (root, cb) -> searchPredicateBuilder.build(root, cb, entityManager.getMetamodel(), search, query),
+            JpaCriteriaExecutor.count()
+        );
     }
 
     /**
@@ -172,15 +180,13 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected boolean internalExists(ID id) {
-        var cb = entityManager.getCriteriaBuilder();
-        var cq = cb.createQuery(Long.class);
-        var root = cq.from(entityClass);
-
-        cq
-            .select(cb.count(root))
-            .where(cb.equal(root.get(getEntityIdFieldName()), id));
-
-        return entityManager.createQuery(cq).getSingleResult() > 0;
+        return JpaQueryHelpers.query(
+            entityManager,
+            entityClass,
+            Long.class,
+            (root, cb) -> buildIdPredicate(root, cb, id),
+            JpaCriteriaExecutor.exists()
+        );
     }
 
     /**
@@ -213,14 +219,11 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaUtils.withTransaction(entityManager.getTransaction(), function);
+        return JpaUtils.requireTransaction(entityManager, function);
     }
 
-    /**
-     * Retrieves the name of the entity identifier field.
-     * Can be overridden if the ID field is not named conventionally.
-     */
-    protected String getEntityIdFieldName() {
-        return JpaUtils.getIdFieldName(entityManager.getMetamodel(), entityClass);
+    protected Predicate buildIdPredicate(Root<ENTITY> root, CriteriaBuilder cb, ID id) {
+        return cb.equal(root.get(JpaUtils.getIdFieldName(entityManager.getMetamodel(), entityClass)), id);
     }
+
 }

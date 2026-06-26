@@ -1,8 +1,8 @@
 package com.peluware.freddy.cruder.springframework.web;
 
 import com.peluware.freddy.cruder.CrudContext;
+import com.peluware.freddy.cruder.OwnedCountProvider;
 import com.peluware.freddy.cruder.springframework.SpringCrudOptions;
-import com.peluware.freddy.cruder.springframework.SpringOwnedCrudProvider;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 public interface OwnedCountController<OWNER_ID> {
 
-    SpringOwnedCrudProvider<OWNER_ID, ?, ?, ?> getService();
+    OwnedCountProvider<OWNER_ID> getService();
 
     @GetMapping("/count")
     default ResponseEntity<Long> count(

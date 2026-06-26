@@ -1,6 +1,6 @@
 package com.peluware.freddy.cruder.springframework.web;
 
-import com.peluware.freddy.cruder.springframework.SpringCrudProvider;
+import com.peluware.freddy.cruder.WriteProvider;
 
 
 public interface WriteController<ID, INPUT, OUTPUT> extends
@@ -9,5 +9,5 @@ public interface WriteController<ID, INPUT, OUTPUT> extends
         DeleteController<ID> {
 
     @Override
-    SpringCrudProvider<ID, INPUT, OUTPUT> getService();
+    WriteProvider<ID, INPUT, OUTPUT> getService();
 }

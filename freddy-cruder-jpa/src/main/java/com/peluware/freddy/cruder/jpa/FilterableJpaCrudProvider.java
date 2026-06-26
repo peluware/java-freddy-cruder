@@ -222,7 +222,7 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      */
     @Override
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaUtils.withTransaction(entityManager.getTransaction(), function);
+        return JpaUtils.requireTransaction(entityManager, function);
     }
 
     // ------------------------------------------------------------
@@ -269,13 +269,14 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      * @return the query result
      */
     protected final <T, R> R runQuery(Class<T> resultType, BiFunction<Root<ENTITY>, CriteriaBuilder, Predicate> predicateLoader, JpaCriteriaExecutor<ENTITY, T, R> executor, Map<String, Object> hints) {
-        var cb = entityManager.getCriteriaBuilder();
-        var cq = cb.createQuery(resultType);
-        var root = cq.from(entityClass);
-
-        cq.where(predicateFilter(root, cb, predicateLoader.apply(root, cb)));
-
-        return executor.exec(cq, root, entityManager, hints);
+        return JpaQueryHelpers.query(
+            entityManager,
+            entityClass,
+            resultType,
+            (root, cb) -> predicateFilter(root, cb, predicateLoader.apply(root, cb)),
+            executor,
+            hints
+        );
     }
 
     /**

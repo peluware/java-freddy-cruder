@@ -2,6 +2,7 @@ package com.peluware.freddy.cruder.springframework;
 
 import com.peluware.freddy.cruder.CrudOptions;
 import org.jspecify.annotations.Nullable;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.MultiValueMap;
 
 import java.time.Instant;
@@ -12,7 +13,7 @@ public final class SpringCrudOptions implements CrudOptions {
     private final MultiValueMap<String, String> parameters;
 
     public SpringCrudOptions(MultiValueMap<String, String> parameters) {
-        this.parameters = Objects.requireNonNull(parameters, "Parameters map cannot be null");
+        this.parameters = CollectionUtils.unmodifiableMultiValueMap(Objects.requireNonNull(parameters, "Parameters map cannot be null"));
     }
 
     public static CrudOptions of(MultiValueMap<String, String> parameters) {
