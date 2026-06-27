@@ -1,6 +1,5 @@
 package com.peluware.freddy.cruder.springframework;
 
-import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.omnisearch.EntityOmniSearch;
@@ -8,6 +7,8 @@ import com.peluware.omnisearch.OmniSearch;
 import com.peluware.omnisearch.OmniSearchBaseOptions;
 import com.peluware.omnisearch.OmniSearchOptions;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Set;
 
@@ -97,14 +98,14 @@ public final class OmniSearchRepository<ENTITY> implements SearchRepository<ENTI
     }
 
     @Override
-    public Page<ENTITY> findBySearch(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
-        return delegate.page(new OmniSearchOptions()
+    public Page<ENTITY> findAllBySearch(@Nullable String search, @Nullable String query, Pageable pageable) {
+        return PeluwareToSpringAdapters.applyAsPage(pageable, (pagination, sort) -> delegate.page(new OmniSearchOptions()
             .search(search)
             .query(query)
             .propagations(propagations)
             .pagination(pagination)
             .sort(sort)
-        );
+        ));
     }
 
     @Override

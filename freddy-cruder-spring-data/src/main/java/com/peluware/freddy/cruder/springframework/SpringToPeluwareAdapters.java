@@ -38,7 +38,7 @@ public final class SpringToPeluwareAdapters {
     }
 
     public static <T> Page<T> toPage(org.springframework.data.domain.Page<T> springPage, Pagination pagination, Sort sort) {
-        return new Page<>(springPage.getContent(), pagination, sort, springPage.getTotalElements());
+        return new SpringPage<>(springPage, pagination, sort);
     }
 
     public static <T> Page<T> applyAsPage(Pagination pagination, Sort sort, Function<org.springframework.data.domain.Pageable, org.springframework.data.domain.Page<T>> query) {

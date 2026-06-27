@@ -6,6 +6,61 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ---
 
+## [2.1.0] — 2026-06-26
+
+### Añadido
+
+#### `freddy-cruder-spring-data-jpa` *(módulo nuevo)*
+- `JpaSearchRepository<T>` — interfaz de fragmento para repositorios JPA. Extiéndela junto a `JpaRepository` y el fragmento de búsqueda se cablea automáticamente via `spring.factories`.
+- `DefaultJpaSearchRepository<T>` — implementación del fragmento respaldada por `JpaSearchRepositoryEngine`. Implementa `RepositoryMetadataAccess` para que `RepositoryMethodContext` esté disponible durante la ejecución.
+- `JpaSearchRepositoryEngine` — implementación de `SearchRepositoryEngine` usando JPA Criteria API. Delega la construcción de predicados a `SearchPredicateBuilder`.
+- `FreddyCruderJpaSearchAutoConfiguration` — autoconfigura `JpaSearchRepositoryEngine` y, cuando `omni-search-jpa` está en el classpath, `JpaOmniSearchPredicateBuilder`, `JpaOmniSearch` y `OmniSearchPredicateAdapter` como `SearchPredicateBuilder`.
+
+#### `freddy-cruder-spring-data`
+- `SpringRepositoryCrudProvider` ahora expone constructores de tipo intersección `<R extends CrudRepository<E,ID> & SearchRepository<E>>`. Pasa un único repositorio que satisfaga ambos contratos sin necesitar una interfaz nominada intermedia.
+- `SpringPage<T>` — tipo puente interno que extiende `Page<T>` de peluware conservando el `Page<T>` original de Spring. Elimina el round trip `SpringPage → PeluwarePage → SpringPage` cuando se usan `PageController` y `SpringRepositoryCrudProvider` juntos.
+
+### Eliminado
+
+#### `freddy-cruder-spring-data`
+- **`CrudSearchRepository<ENTITY, ID>`** — eliminado. El mecanismo de fragmentos de Spring Data solo escanea las interfaces directas y no `@NoRepositoryBean` de un repositorio concreto; esta interfaz nunca era alcanzable por ese scan y por tanto nunca funcionó como habilitador de fragmentos. Usa `extends JpaRepository<E,ID>, JpaSearchRepository<E>` en su lugar.
+- **`JpaCrudSearchRepository<ENTITY, ID>`** — eliminado por la misma razón.
+
+### Cambiado
+
+#### `freddy-cruder-spring-data`
+- `SearchRepository` ya no depende de tipos de `peluware-domain`. La sobrecarga `findBySearch(String, String, Pagination, Sort)` — que retornaba `com.peluware.domain.Page<T>` — ha sido eliminada. La interfaz ahora solo declara métodos con tipos de Spring Data (`Pageable`, Spring `Page<T>`). El patrón de delegación mutua entre las dos sobrecargas, que podía producir `StackOverflowError` si ninguna era sobreescrita, desaparece completamente.
+- `SearchRepository.findBySearch` renombrado a `findAllBySearch`. El nombre anterior coincidía con el patrón de derivación de queries `findBy*` de Spring Data, lo que causaba `QueryCreationException` al arrancar. El nuevo nombre evita esa colisión.
+- `SearchRepository.findAllBySearch` y `countBySearch` son ahora métodos `default` (lanzan `UnsupportedOperationException`) en lugar de abstractos. Esto impide que Spring Data intente derivar queries para métodos que coinciden con sus convenciones de nomenclatura; la implementación del fragmento los sobreescribe antes de que sean invocados.
+- `SpringToPeluwareAdapters.toPage()` ahora devuelve `SpringPage` en lugar de `Page` plano, habilitando el cortocircuito en `PeluwareToSpringAdapters`.
+- `PeluwareToSpringAdapters.toPage()` desenvuelve `SpringPage` directamente en lugar de re-envolver en `PageImpl`.
+
+### Guía de migración
+
+**Definición del repositorio:**
+```java
+// Antes (nunca funcionó)
+interface ProductoRepository extends CrudSearchRepository<Producto, Long> {}
+
+// Después
+interface ProductoRepository extends JpaRepository<Producto, Long>, JpaSearchRepository<Producto> {}
+```
+
+**Constructor del servicio:**
+```java
+// Antes
+public ProductoService(ProductoRepository repo) {
+    super(repo, repo, Producto.class); // había que pasar dos veces
+}
+
+// Después — el tipo intersección acepta un único argumento
+public ProductoService(ProductoRepository repo) {
+    super(repo, Producto.class);
+}
+```
+
+---
+
 ## [2.0.0] — 2026-06-26
 
 Esta versión consolida varios cambios estructurales que venían acumulándose desde 1.x: un modelo de providers alineado con ISP, una capa completa de Criteria API para JPA y — lo más relevante — el desacoplamiento de `freddy-cruder-jpa` y `freddy-cruder-spring-data` de `omni-search`.

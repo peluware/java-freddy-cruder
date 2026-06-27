@@ -117,7 +117,7 @@ public interface JpaCriteriaExecutor<SELECTED, RESULT, RETURN> {
         };
     }
 
-    private static <T> TypedQuery<T> createTypedQuery(CriteriaQuery<T> cq, EntityManager em, Map<String, Object> hints) {
+    static <T> TypedQuery<T> createTypedQuery(CriteriaQuery<T> cq, EntityManager em, Map<String, Object> hints) {
         TypedQuery<T> query = em.createQuery(cq);
         hints.forEach(query::setHint);
         return query;

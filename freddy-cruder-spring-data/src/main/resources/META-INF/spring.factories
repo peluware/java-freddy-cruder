@@ -1,0 +1,3 @@
+# SearchRepository is a store-agnostic contract — no default fragment registered here.
+# Store-specific modules register their own sub-interface fragment.
+# See: freddy-cruder-spring-data-jpa META-INF/spring.factories

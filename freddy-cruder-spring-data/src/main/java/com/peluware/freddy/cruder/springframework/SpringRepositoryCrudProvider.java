@@ -14,7 +14,7 @@ import org.springframework.data.repository.CrudRepository;
  * to a {@link CrudRepository} and search/pagination to an {@link SearchRepository}.
  *
  * <p>
- * When your repository implements both contracts (e.g. via {@link CrudSearchRepository}),
+ * When your repository implements both contracts (e.g. {@code extends JpaRepository<E,ID>, JpaSearchRepository<E>}),
  * use the single-argument constructors to avoid passing the same object twice.
  * </p>
  *
@@ -35,10 +35,10 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
     /**
      * Creates a provider with explicit entity class, separate repository and search adapter.
      *
-     * @param repository           the Spring Data repository for persistence operations
+     * @param repository       the Spring Data repository for persistence operations
      * @param searchRepository the search and count adapter
-     * @param entityClass          the entity class managed by this provider
-     * @param events               the CRUD lifecycle events handler
+     * @param entityClass      the entity class managed by this provider
+     * @param events           the CRUD lifecycle events handler
      */
     public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(entityClass, events);
@@ -49,34 +49,35 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
     /**
      * Creates a provider with explicit entity class and default lifecycle events (no-op).
      *
-     * @param repository             the Spring Data repository for persistence operations
+     * @param repository       the Spring Data repository for persistence operations
      * @param searchRepository the search and count adapter
-     * @param entityClass            the entity class managed by this provider
+     * @param entityClass      the entity class managed by this provider
      */
     public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, Class<ENTITY> entityClass) {
         this(repository, searchRepository, entityClass, EntityCrudEvents.getDefault());
     }
 
     /**
-     * Creates a provider with explicit entity class from a {@link CrudSearchRepository},
-     * which implements both {@link CrudRepository} and {@link SearchRepository}.
+     * Creates a provider with explicit entity class from a repository that implements both
+     * {@link CrudRepository} and {@link SearchRepository} (e.g. one that extends both
+     * {@code JpaRepository} and {@code JpaSearchRepository}).
      *
      * @param repository  the repository implementing both persistence and search
      * @param entityClass the entity class managed by this provider
      * @param events      the CRUD lifecycle events handler
      */
-    public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public <R extends CrudRepository<ENTITY, ID> & SearchRepository<ENTITY>> SpringRepositoryCrudProvider(R repository, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         this(repository, repository, entityClass, events);
     }
 
     /**
-     * Creates a provider with explicit entity class from a {@link CrudSearchRepository}
-     * and default lifecycle events (no-op).
+     * Creates a provider with explicit entity class from a repository that implements both
+     * {@link CrudRepository} and {@link SearchRepository}, with default lifecycle events.
      *
      * @param repository  the repository implementing both persistence and search
      * @param entityClass the entity class managed by this provider
      */
-    public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, Class<ENTITY> entityClass) {
+    public <R extends CrudRepository<ENTITY, ID> & SearchRepository<ENTITY>> SpringRepositoryCrudProvider(R repository, Class<ENTITY> entityClass) {
         this(repository, repository, entityClass, EntityCrudEvents.getDefault());
     }
 
@@ -88,9 +89,9 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
      * Creates a provider by resolving the entity class automatically from the generic type
      * hierarchy via reflection, using separate repository and search adapter.
      *
-     * @param repository             the Spring Data repository for persistence operations
+     * @param repository       the Spring Data repository for persistence operations
      * @param searchRepository the search and count adapter
-     * @param events                 the CRUD lifecycle events handler
+     * @param events           the CRUD lifecycle events handler
      */
     public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         super(events);
@@ -102,7 +103,7 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
      * Creates a provider by resolving the entity class automatically from the generic type
      * hierarchy via reflection, with default lifecycle events (no-op).
      *
-     * @param repository             the Spring Data repository for persistence operations
+     * @param repository       the Spring Data repository for persistence operations
      * @param searchRepository the search and count adapter
      */
     public SpringRepositoryCrudProvider(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository) {
@@ -110,23 +111,24 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
     }
 
     /**
-     * Creates a provider by resolving the entity class automatically from the generic type
-     * hierarchy via reflection, from a {@link CrudSearchRepository}.
+     * Creates a provider by resolving the entity class via reflection, from a repository
+     * that implements both {@link CrudRepository} and {@link SearchRepository}.
      *
      * @param repository the repository implementing both persistence and search
      * @param events     the CRUD lifecycle events handler
      */
-    public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository, EntityCrudEvents<ENTITY, ID, INPUT> events) {
+    public <R extends CrudRepository<ENTITY, ID> & SearchRepository<ENTITY>> SpringRepositoryCrudProvider(R repository, EntityCrudEvents<ENTITY, ID, INPUT> events) {
         this(repository, repository, events);
     }
 
     /**
-     * Creates a provider by resolving the entity class automatically from the generic type
-     * hierarchy via reflection, from a {@link CrudSearchRepository} and default lifecycle events (no-op).
+     * Creates a provider by resolving the entity class via reflection, from a repository
+     * that implements both {@link CrudRepository} and {@link SearchRepository},
+     * with default lifecycle events.
      *
      * @param repository the repository implementing both persistence and search
      */
-    public SpringRepositoryCrudProvider(CrudSearchRepository<ENTITY, ID> repository) {
+    public <R extends CrudRepository<ENTITY, ID> & SearchRepository<ENTITY>> SpringRepositoryCrudProvider(R repository) {
         this(repository, repository, EntityCrudEvents.getDefault());
     }
 
@@ -142,7 +144,11 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
 
     @Override
     protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
-        return searchRepository.findBySearch(search, query, pagination, sort);
+        return SpringToPeluwareAdapters.applyAsPage(pagination, sort, pageable -> searchRepository.findAllBySearch(
+            search,
+            query,
+            pageable
+        ));
     }
 
     @Override

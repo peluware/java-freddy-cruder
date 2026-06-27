@@ -6,7 +6,7 @@
 
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <packaging>pom</packaging>
     <name>Freddy Cruder</name>
     <description>
@@ -41,6 +41,7 @@
         <module>freddy-cruder-core</module>
         <module>freddy-cruder-jpa</module>
         <module>freddy-cruder-spring-data</module>
+        <module>freddy-cruder-spring-data-jpa</module>
     </modules>
 
     <properties>
@@ -70,6 +71,11 @@
             <dependency>
                 <groupId>com.peluware</groupId>
                 <artifactId>freddy-cruder-spring-data</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-spring-data-jpa</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

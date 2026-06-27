@@ -35,6 +35,7 @@ public final class PeluwareToSpringAdapters {
     }
 
     public static <R> Page<R> toPage(Pageable pageable, com.peluware.domain.Page<R> page) {
+        if (page instanceof SpringPage<R> sp) return sp.unwrap();
         return new PageImpl<>(page.getContent(), pageable, page.getTotalElements());
     }
 

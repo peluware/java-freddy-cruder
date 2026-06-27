@@ -7,11 +7,12 @@
     <parent>
         <groupId>com.peluware</groupId>
         <artifactId>freddy-cruder</artifactId>
-       <version>2.1.0</version>
+        <version>2.1.0</version>
     </parent>
 
-    <artifactId>freddy-cruder-spring-data</artifactId>
-    <name>Freddy Cruder Spring Boot Starter</name>
+    <artifactId>freddy-cruder-spring-data-jpa</artifactId>
+    <name>Freddy Cruder Spring Data JPA</name>
+    <description>JPA integration for Freddy Cruder Spring Data module. Provides JpaSearchRepositoryEngine and autoconfiguration for SearchPredicateBuilder and SearchRepositoryEngine beans.</description>
 
     <properties>
         <org.springframework.boot.version>4.1.0</org.springframework.boot.version>
@@ -20,26 +21,29 @@
     <dependencies>
         <dependency>
             <groupId>com.peluware</groupId>
-            <artifactId>freddy-cruder-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jspecify</groupId>
-            <artifactId>jspecify</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-commons</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <optional>true</optional>
+            <artifactId>freddy-cruder-jpa</artifactId>
         </dependency>
         <dependency>
             <groupId>com.peluware</groupId>
-            <artifactId>omni-search-core</artifactId>
+            <artifactId>freddy-cruder-spring-data</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.peluware</groupId>
+            <artifactId>omni-search-jpa</artifactId>
             <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

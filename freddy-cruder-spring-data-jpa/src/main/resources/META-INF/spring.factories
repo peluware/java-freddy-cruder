@@ -1,0 +1,2 @@
+com.peluware.freddy.cruder.springframework.jpa.JpaSearchRepository=\
+  com.peluware.freddy.cruder.springframework.jpa.DefaultJpaSearchRepository

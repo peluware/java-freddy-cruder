@@ -10,19 +10,20 @@ Freddy Cruder es una librería Java modular y agnóstica al framework que estand
 
 ## Módulos
 
-La librería se divide en tres módulos independientes. `freddy-cruder-jpa` y `freddy-cruder-spring-data` dependen ambos de `freddy-cruder-core` y pueden usarse de forma independiente entre sí:
-
 ```
-              freddy-cruder-core
-             /                  \
-freddy-cruder-jpa    freddy-cruder-spring-data
+                  freddy-cruder-core
+                 /                  \
+    freddy-cruder-jpa    freddy-cruder-spring-data
+              \                    /
+         freddy-cruder-spring-data-jpa
 ```
 
-| Módulo | Descripción |
-|--------|-------------|
-| `freddy-cruder-core` | Contratos y abstracciones base. Sin dependencias de framework. |
-| `freddy-cruder-jpa` | Implementación JPA via Criteria API. `omni-search-jpa` es una integración opcional para búsqueda full-text y filtrado RSQL. |
-| `freddy-cruder-spring-data` | Integración con Spring Data: controllers REST, soporte para `CrudRepository` y `SpringCrudOptions`. |
+| Módulo                          | Descripción                                                                                                                                                                                           |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `freddy-cruder-core`            | Contratos y abstracciones base. Sin dependencias de framework.                                                                                                                                        |
+| `freddy-cruder-jpa`             | Implementación JPA via Criteria API. `omni-search-jpa` es una integración opcional para búsqueda full-text y filtrado RSQL.                                                                           |
+| `freddy-cruder-spring-data`     | Integración con Spring Data: controllers REST, soporte para `CrudRepository` y `SpringCrudOptions`.                                                                                                   |
+| `freddy-cruder-spring-data-jpa` | Fragmento JPA para `freddy-cruder-spring-data`. Autoconfigura `JpaSearchRepositoryEngine` e integración opcional con omni-search. Úsalo cuando combines Spring Data JPA con el fragmento de búsqueda. |
 
 ---
 
@@ -35,7 +36,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -44,7 +45,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -53,7 +54,16 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
+</dependency>
+```
+
+**Spring Data JPA con fragmento de búsqueda (incluye los dos anteriores):**
+```xml
+<dependency>
+    <groupId>com.peluware</groupId>
+    <artifactId>freddy-cruder-spring-data-jpa</artifactId>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -65,15 +75,15 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 
 `CrudProvider<ID, INPUT, OUTPUT>` y `OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>` se componen de providers atómicos `@FunctionalInterface`, uno por operación:
 
-| Provider atómico | Operación |
-|-----------------|-----------|
-| `PageProvider` | Lista paginada con búsqueda full-text y filtro RSQL opcionales |
-| `FindProvider` | Buscar por ID; lanza `NotFoundException` si no existe |
-| `CountProvider` | Contar entidades que coincidan |
-| `ExistsProvider` | Verificar existencia por ID |
-| `CreateProvider` | Crear una entidad desde un DTO de entrada |
-| `UpdateProvider` | Actualizar una entidad existente |
-| `DeleteProvider` | Eliminar por ID |
+| Provider atómico | Operación                                                      |
+|------------------|----------------------------------------------------------------|
+| `PageProvider`   | Lista paginada con búsqueda full-text y filtro RSQL opcionales |
+| `FindProvider`   | Buscar por ID; lanza `NotFoundException` si no existe          |
+| `CountProvider`  | Contar entidades que coincidan                                 |
+| `ExistsProvider` | Verificar existencia por ID                                    |
+| `CreateProvider` | Crear una entidad desde un DTO de entrada                      |
+| `UpdateProvider` | Actualizar una entidad existente                               |
+| `DeleteProvider` | Eliminar por ID                                                |
 
 Cada uno tiene su contraparte `Owned*` que agrega un parámetro de scope `OWNER_ID`. Los controllers y servicios pueden declarar solo las capacidades que realmente necesitan.
 
@@ -166,15 +176,23 @@ create(input)
 
 ## Uso con Spring Data
 
-### 1. Define tu servicio
+### 1. Define tu repositorio
 
-Extiende `SpringRepositoryCrudProvider` e implementa los dos métodos de mapeo. El resto lo maneja la librería.
+Extiende `JpaRepository` y `JpaSearchRepository`. El fragmento de búsqueda se registra automáticamente via `spring.factories` — sin configuración adicional.
+
+```java
+public interface ProductoRepository extends JpaRepository<Producto, Long>, JpaSearchRepository<Producto> {}
+```
+
+### 2. Define tu servicio
+
+Extiende `SpringRepositoryCrudProvider` e implementa los dos métodos de mapeo. Pasa tu repositorio como argumento único — el constructor de tipo intersección acepta cualquier objeto que implemente tanto `CrudRepository` como `SearchRepository`.
 
 ```java
 @Service
 public class ProductoService extends SpringRepositoryCrudProvider<Producto, Long, ProductoInput, ProductoOutput> {
 
-    public ProductoService(CrudSearchRepository<Producto, Long> repository) {
+    public ProductoService(ProductoRepository repository) {
         super(repository, Producto.class);
     }
 
@@ -191,7 +209,7 @@ public class ProductoService extends SpringRepositoryCrudProvider<Producto, Long
 }
 ```
 
-### 2. Expón los endpoints REST
+### 3. Expón los endpoints REST
 
 Implementa cualquier combinación de interfaces de controller. Cada una trae un método `@RequestMapping` default conectado a tu servicio.
 
@@ -215,17 +233,17 @@ public class ProductoController implements CrudController<Long, ProductoInput, P
 
 Esto expone:
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/productos` | Lista paginada |
-| `GET` | `/productos/{id}` | Buscar por ID |
-| `GET` | `/productos/count` | Contar |
-| `HEAD` | `/productos/{id}` | Verificar existencia |
-| `POST` | `/productos` | Crear |
-| `PUT` | `/productos/{id}` | Actualizar |
-| `DELETE` | `/productos/{id}` | Eliminar (retorna 204) |
+| Método   | Ruta               | Descripción            |
+|----------|--------------------|------------------------|
+| `GET`    | `/productos`       | Lista paginada         |
+| `GET`    | `/productos/{id}`  | Buscar por ID          |
+| `GET`    | `/productos/count` | Contar                 |
+| `HEAD`   | `/productos/{id}`  | Verificar existencia   |
+| `POST`   | `/productos`       | Crear                  |
+| `PUT`    | `/productos/{id}`  | Actualizar             |
+| `DELETE` | `/productos/{id}`  | Eliminar (retorna 204) |
 
-### 3. Usa interfaces de controller granulares
+### 4. Usa interfaces de controller granulares
 
 En lugar de `CrudController`, compón solo las operaciones que necesitas:
 
