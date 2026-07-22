@@ -1,0 +1,129 @@
+package com.peluware.freddy.cruder.jpa.query;
+
+import com.peluware.domain.Pagination;
+import com.peluware.domain.Sort;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Selection;
+import jakarta.persistence.metamodel.Metamodel;
+import org.jspecify.annotations.Nullable;
+
+import java.util.List;
+
+/**
+ * Reusable list query: selects (entity or projected), filters, orders, and paginates. For whole
+ * entities rooted at a class prefer {@link EntityListQuery}; this class takes an explicit result
+ * type, {@link JpaSource source} (root or join), and {@link JpaSelection selection} for projections.
+ * Run it with {@link JpaQueryExecutor#exec(jakarta.persistence.EntityManager, JpaQuery)}.
+ *
+ * <pre>{@code
+ * List<ProductDto> page = JpaQueryExecutor.exec(em, new ListQuery<>(
+ *     ProductDto.class,
+ *     JpaSource.root(Product.class),
+ *     (from, cb) -> cb.construct(ProductDto.class, from.get("id"), from.get("name")),
+ *     filter, sort, pagination));
+ * }</pre>
+ *
+ * @param <T> the type of the query source
+ * @param <R> the row type — the entity itself or a projection
+ */
+public class ListQuery<T, R> implements JpaQuery<T, R, List<R>> {
+
+    private final Class<R> resultClass;
+    private final JpaSource<T, R> source;
+    private final JpaSelection<T, R> selection;
+    private final JpaPredicate<T> filter;
+    private final Sort sort;
+    private final Pagination pagination;
+
+    /**
+     * Selects {@code selection} from {@code source}, filtered, sorted and paginated.
+     */
+    public ListQuery(
+        Class<R> resultClass,
+        JpaSource<T, R> source,
+        JpaSelection<T, R> selection,
+        JpaPredicate<T> filter,
+        Sort sort,
+        Pagination pagination
+    ) {
+        this.resultClass = resultClass;
+        this.source = source;
+        this.selection = selection;
+        this.filter = filter;
+        this.sort = sort;
+        this.pagination = pagination;
+    }
+
+    /**
+     * Sorted, without pagination — returns every matching row.
+     */
+    public ListQuery(
+        Class<R> resultClass,
+        JpaSource<T, R> source,
+        JpaSelection<T, R> selection,
+        JpaPredicate<T> filter,
+        Sort sort
+    ) {
+        this(resultClass, source, selection, filter, sort, Pagination.unpaginated());
+    }
+
+    /**
+     * Paginated, without ordering.
+     */
+    public ListQuery(
+        Class<R> resultClass,
+        JpaSource<T, R> source,
+        JpaSelection<T, R> selection,
+        JpaPredicate<T> filter,
+        Pagination pagination
+    ) {
+        this(resultClass, source, selection, filter, Sort.unsorted(), pagination);
+    }
+
+    /**
+     * Neither sorted nor paginated — every matching row, in store order.
+     */
+    public ListQuery(
+        Class<R> resultClass,
+        JpaSource<T, R> source,
+        JpaSelection<T, R> selection,
+        JpaPredicate<T> filter
+    ) {
+        this(resultClass, source, selection, filter, Sort.unsorted(), Pagination.unpaginated());
+    }
+
+    @Override
+    public final CriteriaQuery<R> create(CriteriaBuilder cb) {
+        return cb.createQuery(resultClass);
+    }
+
+    @Override
+    public final From<?, T> from(CriteriaQuery<R> cq) {
+        return source.from(cq);
+    }
+
+    @Override
+    public final Selection<? extends R> select(From<?, T> from, CriteriaBuilder cb) {
+        return selection.select(from, cb);
+    }
+
+    @Override
+    public final @Nullable Predicate build(From<?, T> from, CriteriaBuilder cb) {
+        return filter.build(from, cb);
+    }
+
+    @Override
+    public final List<Order> orders(From<?, T> from, CriteriaBuilder cb, Metamodel metamodel) {
+        return JpaOrder.<T>by(sort).orders(from, cb, metamodel);
+    }
+
+    @Override
+    public final List<R> result(TypedQuery<R> query) {
+        return JpaResult.<R>list(pagination).result(query);
+    }
+}

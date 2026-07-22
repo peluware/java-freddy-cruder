@@ -1,0 +1,2 @@
+com.peluware.freddy.cruder.springframework.mongodb.MongoSearchRepository=\
+  com.peluware.freddy.cruder.springframework.mongodb.DefaultMongoSearchRepository

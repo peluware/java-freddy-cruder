@@ -6,39 +6,25 @@ import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
+import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
+import com.peluware.freddy.cruder.jpa.query.EntityListQuery;
+import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
+import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
+import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 /**
- * JPA-specific implementation of {@link EntityCrudProvider} that builds all queries
- * directly via the JPA Criteria API, delegating predicate construction to a
- * {@link SearchPredicateBuilder}.
+ * JPA {@link EntityCrudProvider} that applies a {@link #predicateFilter} to every read query, for
+ * cross-cutting filters such as soft-delete or multi-tenant scoping.
  *
- * <p>
- * Unlike {@link JpaCrudProvider} which relies on the high-level {@link com.peluware.omnisearch.OmniSearch}
- * API, this provider gives subclasses full control over query construction through
- * the lower-level Criteria API. This makes it more suitable when custom predicates,
- * query hints, or fine-grained query tuning are required.
- * </p>
- *
- * <p>
- * All queries are executed through {@link #runQuery}, which applies the predicate
- * returned by {@link #predicateFilter} before execution — a hook designed for
- * cross-cutting concerns such as soft-delete filters or multi-tenant scoping.
- * </p>
- *
- * <p>
- * The default {@link SearchPredicateBuilder} delegates to {@code omni-search-jpa} via
- * {@link OmniSearchPredicateAdapter}. Provide a custom implementation to use a
- * different search strategy without any dependency on {@code omni-search}.
- * </p>
+ * <p>Search and RSQL predicates come from a {@link SearchPredicateBuilder} — by default
+ * {@code omni-search-jpa} via {@link OmniSearchPredicateAdapter}; supply your own to change the
+ * strategy without depending on {@code omni-search}.</p>
  *
  * @param <ENTITY> the JPA entity type
  * @param <ID>     the entity identifier type
@@ -142,11 +128,10 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      */
     @Override
     protected ENTITY internalFind(ID id) throws NotFoundEntityException {
-        return runQuery(
-            entityClass,
-            (root, cb) -> buildIdPredicate(root, cb, id),
-            JpaCriteriaExecutor.first()
-        ).orElseThrow(() -> new NotFoundEntityException(entityClass, id));
+        return JpaQueryExecutor.exec(
+            entityManager,
+            new EntityFindQuery<>(entityClass, filtered(buildIdPredicate(id)), () -> new NotFoundEntityException(entityClass, id)).addHints(getQueryHints())
+        );
     }
 
     /**
@@ -155,10 +140,14 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      */
     @Override
     protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
-        var content = runQuery(
-            entityClass,
-            (root, cb) -> buildSearchPredicate(root, cb, search, query),
-            JpaCriteriaExecutor.list(sort, pagination)
+        var content = JpaQueryExecutor.exec(
+            entityManager,
+            new EntityListQuery<>(
+                entityClass,
+                filtered(searchPredicate(search, query)),
+                sort,
+                pagination
+            ).addHints(getQueryHints())
         );
         return Page.deferred(
             content,
@@ -173,10 +162,12 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      */
     @Override
     protected long internalCount(@Nullable String search, @Nullable String query) {
-        return runQuery(
-            Long.class,
-            (root, cb) -> buildSearchPredicate(root, cb, search, query),
-            JpaCriteriaExecutor.count()
+        return JpaQueryExecutor.exec(
+            entityManager,
+            new EntityCountQuery<>(
+                entityClass,
+                filtered(searchPredicate(search, query))).addHints(getQueryHints()
+            )
         );
     }
 
@@ -185,10 +176,12 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      */
     @Override
     protected boolean internalExists(ID id) {
-        return runQuery(
-            Long.class,
-            (root, cb) -> buildIdPredicate(root, cb, id),
-            JpaCriteriaExecutor.exists()
+        return JpaQueryExecutor.exec(
+            entityManager,
+            new EntityExistsQuery<>(
+                entityClass,
+                filtered(buildIdPredicate(id))
+            ).addHints(getQueryHints())
         );
     }
 
@@ -230,110 +223,38 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
     // ------------------------------------------------------------
 
     /**
-     * Builds and executes a Criteria API query against the entity table using the default
-     * query hints from {@link #getQueryHints()}.
+     * Conjoins {@code predicate} with {@link #predicateFilter}. Use it when building custom queries
+     * so they honor the same global filter.
      *
-     * <p>
-     * The predicate produced by {@code predicateLoader} is passed through
-     * {@link #predicateFilter} before being applied to the query, allowing
-     * subclasses to inject global filters transparently.
-     * </p>
-     *
-     * @param resultType      the type of the query result (entity class or {@code Long} for counts)
-     * @param predicateLoader function that builds the main predicate given a {@link Root} and {@link CriteriaBuilder}
-     * @param executor        strategy that configures and executes the query
-     * @param <T>             the result row type
-     * @param <R>             the final return type
-     * @return the query result
+     * @param predicate the operation predicate
+     * @return {@code predicate} AND {@link #predicateFilter}
      */
-    protected final <T, R> R runQuery(Class<T> resultType, BiFunction<Root<ENTITY>, CriteriaBuilder, Predicate> predicateLoader, JpaCriteriaExecutor<ENTITY, T, R> executor) {
-        return runQuery(resultType, predicateLoader, executor, getQueryHints());
+    protected final JpaPredicate<ENTITY> filtered(JpaPredicate<ENTITY> predicate) {
+        return predicate.and(predicateFilter());
     }
 
     /**
-     * Builds and executes a Criteria API query against the entity table using explicit query hints,
-     * overriding the defaults from {@link #getQueryHints()}.
+     * A cross-cutting filter applied to every read query ({@code find}, {@code page}, {@code count},
+     * {@code exists}) but never to writes. Override to scope every query — for soft-delete,
+     * multi-tenancy, or row-level security:
      *
-     * <p>
-     * The predicate produced by {@code predicateLoader} is passed through
-     * {@link #predicateFilter} before being applied to the query, allowing
-     * subclasses to inject global filters transparently.
-     * </p>
+     * <pre>{@code (from, cb) -> cb.isFalse(from.get("deleted"))}</pre>
      *
-     * @param resultType      the type of the query result (entity class or {@code Long} for counts)
-     * @param predicateLoader function that builds the main predicate given a {@link Root} and {@link CriteriaBuilder}
-     * @param executor        strategy that configures and executes the query
-     * @param hints           JPA query hints to apply, overriding {@link #getQueryHints()}
-     * @param <T>             the result row type
-     * @param <R>             the final return type
-     * @return the query result
+     * @return the cross-cutting filter, or {@link JpaPredicate#all()} for none (the default)
      */
-    protected final <T, R> R runQuery(Class<T> resultType, BiFunction<Root<ENTITY>, CriteriaBuilder, Predicate> predicateLoader, JpaCriteriaExecutor<ENTITY, T, R> executor, Map<String, Object> hints) {
-        return JpaQueryHelpers.query(
-            entityManager,
-            entityClass,
-            resultType,
-            (root, cb) -> predicateFilter(root, cb, predicateLoader.apply(root, cb)),
-            executor,
-            hints
-        );
+    protected JpaPredicate<ENTITY> predicateFilter() {
+        return JpaPredicate.all();
     }
 
-    /**
-     * Applies global predicate filters to every read query before execution.
-     *
-     * <p>
-     * This hook is called for all read operations ({@code find}, {@code page},
-     * {@code count}, {@code exists}) but <strong>not</strong> for write operations
-     * ({@code create}, {@code update}, {@code delete}), which bypass the Criteria API.
-     * </p>
-     *
-     * <p>
-     * The default implementation returns the original predicate unchanged.
-     * Subclasses may override to inject cross-cutting predicates that must apply to
-     * every query, such as:
-     * </p>
-     *
-     * <ul>
-     *   <li>Soft-delete filter: {@code cb.and(original, cb.isFalse(root.get("deleted")))}</li>
-     *   <li>Multi-tenant scoping: {@code cb.and(original, cb.equal(root.get("tenantId"), currentTenant()))}</li>
-     *   <li>Row-level security constraints</li>
-     * </ul>
-     *
-     * @param root              the query root representing the entity being queried
-     * @param cb                the criteria builder, available for combining predicates
-     * @param originalPredicate the predicate built by the operation
-     * @return the final predicate to apply, potentially combined with additional conditions
-     */
-    protected Predicate predicateFilter(Root<ENTITY> root, CriteriaBuilder cb, Predicate originalPredicate) {
-        return originalPredicate;
-    }
 
     /**
-     * Builds a predicate for full-text search and RSQL filtering using the configured
-     * {@link SearchPredicateBuilder}.
+     * The predicate matching an entity by its identifier. Override for custom id-matching logic.
      *
-     * @param root   the query root
-     * @param cb     the criteria builder
-     * @param search normalized full-text search string, or {@code null}
-     * @param query  RSQL query expression, or {@code null}
-     * @return the resulting predicate
+     * @param id the identifier value to match
+     * @return a predicate matching the identifier
      */
-    protected Predicate buildSearchPredicate(Root<ENTITY> root, CriteriaBuilder cb, @Nullable String search, @Nullable String query) {
-        return searchPredicateBuilder.build(root, cb, entityManager.getMetamodel(), search, query);
-    }
-
-    /**
-     * Builds an equality predicate matching the entity's identifier field against the given {@code id}.
-     *
-     * @param root the query root
-     * @param cb   the criteria builder
-     * @param id   the identifier value to match
-     * @return an equality predicate on the ID field
-     */
-    protected Predicate buildIdPredicate(Root<ENTITY> root, CriteriaBuilder cb, ID id) {
-        var idFieldName = JpaUtils.getIdFieldName(entityManager.getMetamodel(), entityClass);
-        return cb.equal(root.get(idFieldName), id);
+    protected JpaPredicate<ENTITY> buildIdPredicate(ID id) {
+        return JpaPredicate.byId(entityManager.getMetamodel(), id);
     }
 
     /**
@@ -350,4 +271,18 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
     protected Map<String, Object> getQueryHints() {
         return Map.of();
     }
+
+    /**
+     * The full-text search and RSQL predicate from the configured {@link SearchPredicateBuilder}.
+     * Customize search behaviour by supplying a different builder to the constructor, not by
+     * overriding; subclasses may call this to reuse it in custom queries.
+     *
+     * @param search normalized full-text search string, or {@code null}
+     * @param query  RSQL query expression, or {@code null}
+     * @return the search predicate
+     */
+    protected final JpaPredicate<ENTITY> searchPredicate(@Nullable String search, @Nullable String query) {
+        return searchPredicateBuilder.bind(entityManager.getMetamodel(), search, query);
+    }
+
 }

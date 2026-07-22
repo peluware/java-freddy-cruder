@@ -1,7 +1,5 @@
 package com.peluware.freddy.cruder.springframework;
 
-import com.peluware.domain.Pagination;
-import com.peluware.domain.Sort;
 import com.peluware.omnisearch.EntityOmniSearch;
 import com.peluware.omnisearch.OmniSearch;
 import com.peluware.omnisearch.OmniSearchBaseOptions;

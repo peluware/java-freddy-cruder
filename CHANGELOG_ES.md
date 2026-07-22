@@ -6,6 +6,105 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ---
 
+## [3.0.0] — 2026-07-21
+
+Esta versión suma MongoDB como store de primera clase junto a JPA, y reemplaza los antiguos helpers
+ad-hoc de la Criteria API por un modelo de queries pequeño y componible. Varias APIs se renombraron o
+cambiaron de forma en el camino, por eso es una versión mayor.
+
+### Por qué 3.0.0
+
+`freddy-cruder-jpa` había crecido de forma orgánica alrededor de un puñado de helpers estáticos
+(`JpaQueryHelpers`, `JpaCriteriaExecutor`, `JpaCriteriaCallback`). Funcionaban, pero cada nueva forma
+de query implicaba más sobrecargas. Esta versión los reemplaza por un pequeño conjunto de piezas
+componibles — un source, una selección, un filtro, un ordenamiento y un resultado — que se combinan
+en objetos de query reutilizables y con nombre (`CountQuery`, `ExistsQuery`, `ListQuery`, `FindQuery`,
+y sus atajos `Entity*` para el caso común de "la entidad completa"). La misma forma ahora también
+impulsa MongoDB, así que ambos stores se leen igual.
+
+### Añadido
+
+#### `freddy-cruder-mongodb` *(módulo nuevo)*
+- `MongoCrudProvider` / `FilterableMongoCrudProvider` / `FilterableOwnedMongoCrudProvider` — las
+  contrapartes en MongoDB de los providers JPA, construidas sobre el driver síncrono de MongoDB.
+- `SearchFilterBuilder` — estrategia de filtrado full-text/RSQL conectable, con `omni-search-mongodb`
+  como opción por defecto via `OmniSearchFilterAdapter`.
+
+#### `freddy-cruder-spring-data-mongodb` *(módulo nuevo)*
+- `MongoSearchRepository` / `DefaultMongoSearchRepository` / `MongoSearchEngine` — el fragmento de
+  búsqueda para repositorios Spring Data MongoDB, autoconfigurado igual que el de JPA.
+
+#### `freddy-cruder-jpa`
+- Un modelo de queries componible en el nuevo paquete `com.peluware.freddy.cruder.jpa.query`: arma
+  una query a partir de piezas independientes (source, selección, filtro, ordenamiento, resultado,
+  hints) y ejecútala con `JpaQueryExecutor`, o encadena `query.exec(entityManager)` directamente.
+- Objetos de query reutilizables — `CountQuery`, `ExistsQuery`, `ListQuery`, `FindQuery` — más las
+  variantes `Entity*` para el caso común de una entidad completa a partir de su clase.
+- `JpaHints` — constantes con nombre y factories para los hints estándar de Jakarta Persistence
+  (fetch/load graph, timeouts, modo de caché), en lugar de strings de hint escritos a mano.
+- `JpaProjectedCrudProvider` / `JpaOwnedProjectedCrudProvider` — leen entidades a través de una
+  proyección liviana (p. ej. un DTO con `cb.construct(...)`) en lugar de cargar la entidad completa,
+  mientras que las escrituras siguen operando sobre la entidad real.
+
+#### `freddy-cruder-core`
+- Hooks `afterCreate(INPUT, ENTITY)` / `afterUpdate(INPUT, ENTITY)` en `EntityCrudProvider` y
+  `OwnedEntityCrudProvider` (variantes con dueño), ejecutados justo después de persistir, con el DTO
+  de entrada y la entidad ya persistida disponibles. Útiles para persistir entidades dependientes que
+  necesitan el identificador generado del padre y no tienen una relación directa a nivel de store.
+
+### Cambiado
+
+#### `freddy-cruder-spring-data`
+- `SearchRepositoryEngine` renombrado a `SearchEngine`.
+
+#### `freddy-cruder-spring-data-jpa`
+- `JpaSearchRepositoryEngine` renombrado a `JpaSearchEngine`.
+
+#### `freddy-cruder-jpa`
+- `buildIdPredicate` y `buildOwnerPredicate` ahora construyen un `JpaPredicate` reutilizable en lugar
+  de un `Predicate` de Criteria crudo, y reciben solo el valor del id/owner — el source de la entidad
+  lo aporta la query que los usa, no quien los llama.
+
+### Eliminado
+
+#### `freddy-cruder-jpa`
+- `JpaQueryHelpers`, `JpaCriteriaExecutor`, `JpaCriteriaCallback` — reemplazados por el modelo de
+  queries de arriba.
+- El hook `runQuery` de `FilterableOwnedJpaCrudProvider` — ya no hace falta con el nuevo modelo de queries.
+
+### Guía de migración
+
+**Motores renombrados:**
+
+| Antes | Después |
+|---|---|
+| `SearchRepositoryEngine` | `SearchEngine` |
+| `JpaSearchRepositoryEngine` | `JpaSearchEngine` |
+
+**Overrides de predicados personalizados**, si sobreescribiste `buildIdPredicate` o `buildOwnerPredicate`:
+```java
+// Antes
+protected Predicate buildIdPredicate(Root<ENTITY> root, CriteriaBuilder cb, ID id) {
+    return cb.equal(root.get("id"), id);
+}
+
+// Después
+protected JpaPredicate<ENTITY> buildIdPredicate(ID id) {
+    return (from, cb) -> cb.equal(from.get("id"), id);
+}
+```
+
+**Queries Criteria personalizadas**, si usabas `JpaQueryHelpers`/`JpaCriteriaExecutor` directamente:
+```java
+// Antes
+JpaQueryHelpers.query(entityManager, Product.class, Product.class, filter, JpaCriteriaExecutor.list(sort, pagination));
+
+// Después
+new EntityListQuery<>(Product.class, filter, sort, pagination).exec(entityManager);
+```
+
+---
+
 ## [2.1.0] — 2026-06-26
 
 ### Añadido

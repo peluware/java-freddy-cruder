@@ -2,8 +2,7 @@ package com.peluware.freddy.cruder.springframework.jpa.autoconfigure;
 
 import com.peluware.freddy.cruder.jpa.OmniSearchPredicateAdapter;
 import com.peluware.freddy.cruder.jpa.SearchPredicateBuilder;
-import com.peluware.freddy.cruder.springframework.SearchRepositoryEngine;
-import com.peluware.freddy.cruder.springframework.jpa.JpaSearchRepositoryEngine;
+import com.peluware.freddy.cruder.springframework.jpa.JpaSearchEngine;
 import com.peluware.omnisearch.jpa.DefaultJpaOmniSearchPredicateBuilder;
 import com.peluware.omnisearch.jpa.JpaOmniSearch;
 import com.peluware.omnisearch.jpa.JpaOmniSearchPredicateBuilder;
@@ -43,8 +42,8 @@ public class FreddyCruderJpaSearchAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(SearchRepositoryEngine.class)
-    JpaSearchRepositoryEngine jpaSearchRepositoryEngine(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder) {
-        return new JpaSearchRepositoryEngine(entityManager, searchPredicateBuilder);
+    @ConditionalOnMissingBean(JpaSearchEngine.class)
+    JpaSearchEngine jpaSearchRepositoryEngine(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder) {
+        return new JpaSearchEngine(entityManager, searchPredicateBuilder);
     }
 }

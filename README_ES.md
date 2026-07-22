@@ -11,19 +11,23 @@ Freddy Cruder es una librería Java modular y agnóstica al framework que estand
 ## Módulos
 
 ```
-                  freddy-cruder-core
-                 /                  \
-    freddy-cruder-jpa    freddy-cruder-spring-data
-              \                    /
-         freddy-cruder-spring-data-jpa
+                         freddy-cruder-core
+          ┌─────────────────────┼─────────────────────┐
+ freddy-cruder-jpa     freddy-cruder-mongodb    freddy-cruder-spring-data
+          │                     │                     │
+          └──────┐              └──────┐              │
+   freddy-cruder-spring-data-jpa   freddy-cruder-spring-data-mongodb
+       (jpa + spring-data)            (mongodb + spring-data)
 ```
 
-| Módulo                          | Descripción                                                                                                                                                                                           |
-|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `freddy-cruder-core`            | Contratos y abstracciones base. Sin dependencias de framework.                                                                                                                                        |
-| `freddy-cruder-jpa`             | Implementación JPA via Criteria API. `omni-search-jpa` es una integración opcional para búsqueda full-text y filtrado RSQL.                                                                           |
-| `freddy-cruder-spring-data`     | Integración con Spring Data: controllers REST, soporte para `CrudRepository` y `SpringCrudOptions`.                                                                                                   |
-| `freddy-cruder-spring-data-jpa` | Fragmento JPA para `freddy-cruder-spring-data`. Autoconfigura `JpaSearchRepositoryEngine` e integración opcional con omni-search. Úsalo cuando combines Spring Data JPA con el fragmento de búsqueda. |
+| Módulo                              | Descripción                                                                                                                                                                                                          |
+|-------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `freddy-cruder-core`                | Contratos y abstracciones base. Sin dependencias de framework.                                                                                                                                                       |
+| `freddy-cruder-jpa`                 | Implementación JPA via Criteria API. `omni-search-jpa` es una integración opcional para búsqueda full-text y filtrado RSQL.                                                                                          |
+| `freddy-cruder-mongodb`             | Implementación MongoDB, espejo del módulo JPA (`MongoCrudProvider`, `FilterableMongoCrudProvider`, `FilterableOwnedMongoCrudProvider`). `omni-search-mongodb` es una integración opcional para búsqueda y RSQL.      |
+| `freddy-cruder-spring-data`         | Integración con Spring Data: controllers REST, soporte para `CrudRepository` y `SpringCrudOptions`.                                                                                                                  |
+| `freddy-cruder-spring-data-jpa`     | Fragmento JPA para `freddy-cruder-spring-data`. Autoconfigura `JpaSearchEngine` e integración opcional con omni-search. Úsalo cuando combines Spring Data JPA con el fragmento de búsqueda.                           |
+| `freddy-cruder-spring-data-mongodb` | Fragmento MongoDB para `freddy-cruder-spring-data`. Autoconfigura `MongoSearchEngine` e integración opcional con omni-search. Úsalo cuando combines Spring Data MongoDB con el fragmento de búsqueda.                 |
 
 ---
 
@@ -36,7 +40,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>2.1.0</version>
+    <version>3.0.0</version>
 </dependency>
 ```
 
@@ -45,7 +49,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>2.1.0</version>
+    <version>3.0.0</version>
 </dependency>
 ```
 
@@ -54,7 +58,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>2.1.0</version>
+    <version>3.0.0</version>
 </dependency>
 ```
 
@@ -63,7 +67,25 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
-    <version>2.1.0</version>
+    <version>3.0.0</version>
+</dependency>
+```
+
+**Soporte MongoDB:**
+```xml
+<dependency>
+    <groupId>com.peluware</groupId>
+    <artifactId>freddy-cruder-mongodb</artifactId>
+    <version>3.0.0</version>
+</dependency>
+```
+
+**Spring Data MongoDB con fragmento de búsqueda:**
+```xml
+<dependency>
+    <groupId>com.peluware</groupId>
+    <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
+    <version>3.0.0</version>
 </dependency>
 ```
 
@@ -115,7 +137,14 @@ protected void postProcess(CrudOperation operation) {}
 protected String applyQueryPolicies(String query) { return query; }
 protected <T> T withTransaction(Supplier<T> function) { return function.get(); }
 protected ENTITY newEntity() { /* basado en reflexión por defecto */ }
+protected void afterCreate(INPUT input, ENTITY created) {}
+protected void afterUpdate(INPUT input, ENTITY updated) {}
 ```
+
+`afterCreate`/`afterUpdate` se ejecutan justo después de persistir, dentro de la misma transacción,
+con el DTO de entrada y la entidad ya persistida (con su identificador generado disponible). Úsalos
+para persistir entidades dependientes que necesitan el identificador del padre pero no tienen una
+relación directa a nivel de store.
 
 ### `CrudOptions`
 
@@ -276,16 +305,27 @@ public class OrdenController implements OwnedCrudController<Long, Long, OrdenInp
 ## Jerarquía de clases
 
 ```
-CrudProvider<ID, INPUT, OUTPUT>                                        (core — interfaz)
-└── EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>                      (core — abstracta)
-    ├── JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>                     (jpa — abstracta)
-    │   └── FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>       (jpa — abstracta)
-    └── SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT>        (spring-data — abstracta)
+CrudProvider<ID, INPUT, OUTPUT>                                             (core — interfaz)
+├── EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>                          (core — abstracta)
+│   ├── JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>                         (jpa — abstracta)
+│   ├── FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>               (jpa — abstracta)
+│   ├── MongoCrudProvider<ENTITY, ID, INPUT, OUTPUT>                       (mongodb — abstracta)
+│   ├── FilterableMongoCrudProvider<ENTITY, ID, INPUT, OUTPUT>             (mongodb — abstracta)
+│   └── SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT>            (spring-data — abstracta)
+└── JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OUTPUT>        (jpa — abstracta)
 
-OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>                         (core — interfaz)
-└── OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>       (core — abstracta)
-    └── FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>  (jpa — abstracta)
+OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>                                        (core — interfaz)
+├── OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>                      (core — abstracta)
+│   ├── FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>           (jpa — abstracta)
+│   └── FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>         (mongodb — abstracta)
+└── JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT>    (jpa — abstracta)
 ```
+
+`JpaCrudProvider` y `FilterableJpaCrudProvider` son hermanas, no padre/hija — la segunda simplemente
+agrega un hook `predicateFilter` y hints de query sobre la misma base `EntityCrudProvider` (igual con
+sus contrapartes de Mongo). `JpaProjectedCrudProvider`/`JpaOwnedProjectedCrudProvider` implementan
+`CrudProvider`/`OwnedCrudProvider` directamente en lugar de extender la base de entidad, ya que su
+camino de lectura devuelve una proyección en vez de la entidad.
 
 ---
 

@@ -89,10 +89,13 @@ public final class OmniSearchPredicateAdapter implements SearchPredicateBuilder 
     }
 
     @Override
-    public <E> Predicate build(From<?, E> root, CriteriaBuilder cb, Metamodel metamodel, @Nullable String search, @Nullable String query) {
+    public <E> Predicate build(From<?, E> from, CriteriaBuilder cb, Metamodel metamodel, @Nullable String search, @Nullable String query) {
         return delegate.buildPredicate(
-            root,
-            new OmniSearchBaseOptions().search(search).query(query).propagations(propagations),
+            from,
+            new OmniSearchBaseOptions()
+                .search(search)
+                .query(query)
+                .propagations(propagations),
             cb,
             metamodel
         );

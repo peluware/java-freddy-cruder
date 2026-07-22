@@ -7,12 +7,12 @@
     <parent>
         <groupId>com.peluware</groupId>
         <artifactId>freddy-cruder</artifactId>
-        <version>2.1.0</version>
+        <version>3.0.0</version>
     </parent>
 
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
     <name>Freddy Cruder Spring Data JPA</name>
-    <description>JPA integration for Freddy Cruder Spring Data module. Provides JpaSearchRepositoryEngine and autoconfiguration for SearchPredicateBuilder and SearchRepositoryEngine beans.</description>
+    <description>JPA integration for Freddy Cruder Spring Data module.</description>
 
     <properties>
         <org.springframework.boot.version>4.1.0</org.springframework.boot.version>
@@ -21,11 +21,11 @@
     <dependencies>
         <dependency>
             <groupId>com.peluware</groupId>
-            <artifactId>freddy-cruder-jpa</artifactId>
+            <artifactId>freddy-cruder-spring-data</artifactId>
         </dependency>
         <dependency>
             <groupId>com.peluware</groupId>
-            <artifactId>freddy-cruder-spring-data</artifactId>
+            <artifactId>freddy-cruder-jpa</artifactId>
         </dependency>
         <dependency>
             <groupId>com.peluware</groupId>

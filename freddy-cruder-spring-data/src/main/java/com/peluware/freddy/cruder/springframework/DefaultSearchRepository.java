@@ -7,16 +7,16 @@ import org.springframework.data.repository.core.RepositoryMethodContext;
 import org.springframework.data.repository.core.support.RepositoryMetadataAccess;
 
 /**
- * Base fragment implementation of {@link SearchRepository} that delegates to a {@link SearchRepositoryEngine}.
+ * Base fragment implementation of {@link SearchRepository} that delegates to a {@link SearchEngine}.
  *
  * <p>Resolves the domain type at runtime via {@link RepositoryMethodContext} so a single
  * instance can serve any repository without generics erasure issues.</p>
  */
 public class DefaultSearchRepository<T> implements SearchRepository<T>, RepositoryMetadataAccess {
 
-    private final SearchRepositoryEngine engine;
+    private final SearchEngine engine;
 
-    public DefaultSearchRepository(SearchRepositoryEngine engine) {
+    public DefaultSearchRepository(SearchEngine engine) {
         this.engine = engine;
     }
 

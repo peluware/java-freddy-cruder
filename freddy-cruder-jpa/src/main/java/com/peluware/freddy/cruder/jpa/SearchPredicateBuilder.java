@@ -1,5 +1,6 @@
 package com.peluware.freddy.cruder.jpa;
 
+import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Predicate;
@@ -28,16 +29,36 @@ import org.jspecify.annotations.Nullable;
 public interface SearchPredicateBuilder {
 
     /**
-     * Builds a {@link Predicate} for the given query root based on the provided
+     * Builds a {@link Predicate} for the given query from based on the provided
      * search string and RSQL query expression.
      *
-     * @param root     the query root of the entity being queried
+     * @param from     the query from of the entity being queried
      * @param cb       the criteria builder
      * @param metamodel the JPA metamodel, used to resolve entity attributes
      * @param search   normalized full-text search string, or {@code null}
      * @param query    RSQL filter expression, or {@code null}
-     * @param <E>      the entity type of the query root
+     * @param <E>      the entity type of the query from
      * @return a predicate to apply to the query; must not be {@code null}
      */
-    <E> Predicate build(From<?, E> root, CriteriaBuilder cb, Metamodel metamodel, @Nullable String search, @Nullable String query);
+    <E> Predicate build(From<?, E> from, CriteriaBuilder cb, Metamodel metamodel, @Nullable String search, @Nullable String query);
+
+    /**
+     * Binds the metamodel and the search/query strings into a {@link JpaPredicate}, ready to use
+     * as the {@code WHERE} of a query.
+     *
+     * <pre>{@code
+     * JpaQueryExecutor.exec(em, Product.class,
+     *     searchPredicateBuilder.bind(em.getMetamodel(), search, query),
+     *     JpaResult.list(pagination));
+     * }</pre>
+     *
+     * @param metamodel the JPA metamodel, used to resolve entity attributes
+     * @param search    normalized full-text search string, or {@code null}
+     * @param query     RSQL filter expression, or {@code null}
+     * @param <E>       the entity type of the query root
+     * @return a predicate bound to the given search parameters
+     */
+    default <E> JpaPredicate<E> bind(Metamodel metamodel, @Nullable String search, @Nullable String query) {
+        return (root, cb) -> build(root, cb, metamodel, search, query);
+    }
 }

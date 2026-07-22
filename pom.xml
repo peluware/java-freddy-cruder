@@ -6,7 +6,7 @@
 
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder</artifactId>
-    <version>2.1.0</version>
+    <version>3.0.0</version>
     <packaging>pom</packaging>
     <name>Freddy Cruder</name>
     <description>
@@ -40,15 +40,17 @@
     <modules>
         <module>freddy-cruder-core</module>
         <module>freddy-cruder-jpa</module>
+        <module>freddy-cruder-mongodb</module>
         <module>freddy-cruder-spring-data</module>
         <module>freddy-cruder-spring-data-jpa</module>
+        <module>freddy-cruder-spring-data-mongodb</module>
     </modules>
 
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
         <encoding.default>UTF-8</encoding.default>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <com.peluware.omnisearch.version>2.3.0</com.peluware.omnisearch.version>
+        <com.peluware.omnisearch.version>2.4.0</com.peluware.omnisearch.version>
     </properties>
 
     <dependencyManagement>
@@ -70,6 +72,11 @@
             </dependency>
             <dependency>
                 <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-mongodb</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
                 <artifactId>freddy-cruder-spring-data</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -86,6 +93,11 @@
             <dependency>
                 <groupId>com.peluware</groupId>
                 <artifactId>omni-search-jpa</artifactId>
+                <version>${com.peluware.omnisearch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>omni-search-mongodb</artifactId>
                 <version>${com.peluware.omnisearch.version}</version>
             </dependency>
             <dependency>

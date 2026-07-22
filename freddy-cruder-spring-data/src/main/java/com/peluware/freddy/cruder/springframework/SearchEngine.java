@@ -11,7 +11,7 @@ import org.springframework.data.domain.Pageable;
  * all repositories. Injected into {@link DefaultSearchRepository} and its
  * store-specific subclasses.</p>
  */
-public interface SearchRepositoryEngine {
+public interface SearchEngine {
 
     <T> Page<T> findAllBySearch(Class<T> domainType, @Nullable String search, @Nullable String query, Pageable pageable);
 

@@ -203,6 +203,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      *   <li>Maps input DTO fields into the entity</li>
      *   <li>Applies "before create" lifecycle events</li>
      *   <li>Delegates persistence to {@link #internalCreate(OWNER_ID, ENTITY)}</li>
+     *   <li>Runs the {@link #afterCreate(OWNER_ID, INPUT, ENTITY)} hook (dependent-entity persistence)</li>
      *   <li>Applies "after create" lifecycle events</li>
      *   <li>Maps entity to output DTO</li>
      * </ol>
@@ -218,6 +219,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
             events.onBeforeCreate(input, entity);
 
             var created = internalCreate(ownerId, entity);
+            afterCreate(ownerId, input, created);
 
             events.onAfterCreate(input, created);
             events.eachEntity(created);
@@ -240,6 +242,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      *   <li>Maps updated DTO fields</li>
      *   <li>Triggers lifecycle events</li>
      *   <li>Delegates to {@link #internalUpdate(OWNER_ID, ENTITY)}</li>
+     *   <li>Runs the {@link #afterUpdate(OWNER_ID, INPUT, ENTITY)} hook (dependent-entity reconciliation)</li>
      *   <li>Maps updated entity to output DTO</li>
      * </ol>
      */
@@ -254,6 +257,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
             events.onBeforeUpdate(input, entity);
 
             var updated = internalUpdate(ownerId, entity);
+            afterUpdate(ownerId, input, updated);
 
             events.onAfterUpdate(input, updated);
             events.eachEntity(updated);
@@ -417,6 +421,43 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * @param operation the completed CRUD operation
      */
     protected void postProcess(CrudOperation operation) {
+        // Subclasses may override
+    }
+
+    /**
+     * Hook executed after {@link #internalCreate(OWNER_ID, ENTITY)}, inside the same transaction,
+     * with the owner scope, the input DTO and the persisted entity (its generated identifier is
+     * available).
+     *
+     * <p>
+     * Override to persist dependent entities that need the parent's identifier — a graph the store
+     * has no direct relationship for. This is provider business logic, distinct from the
+     * cross-cutting {@link EntityCrudEvents#onAfterCreate}.
+     * </p>
+     *
+     * @param ownerId the owner scope of the operation
+     * @param input   the input DTO of the create operation
+     * @param created the freshly persisted entity
+     */
+    protected void afterCreate(OWNER_ID ownerId, INPUT input, ENTITY created) {
+        // Subclasses may override
+    }
+
+    /**
+     * Hook executed after {@link #internalUpdate(OWNER_ID, ENTITY)}, inside the same transaction,
+     * with the owner scope, the input DTO and the persisted entity.
+     *
+     * <p>
+     * Override to reconcile dependent entities from the input DTO after the parent is updated.
+     * This is provider business logic, distinct from the cross-cutting
+     * {@link EntityCrudEvents#onAfterUpdate}.
+     * </p>
+     *
+     * @param ownerId the owner scope of the operation
+     * @param input   the input DTO of the update operation
+     * @param updated the freshly persisted entity
+     */
+    protected void afterUpdate(OWNER_ID ownerId, INPUT input, ENTITY updated) {
         // Subclasses may override
     }
 

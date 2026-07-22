@@ -6,10 +6,12 @@ import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
+import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
+import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
+import com.peluware.freddy.cruder.jpa.query.EntityListQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;
@@ -146,12 +148,14 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
-        var content = JpaQueryHelpers.query(
+        var content = JpaQueryExecutor.exec(
             entityManager,
-            entityClass,
-            entityClass,
-            (root, cb) -> searchPredicateBuilder.build(root, cb, entityManager.getMetamodel(), search, query),
-            JpaCriteriaExecutor.list(sort, pagination)
+            new EntityListQuery<>(
+                entityClass,
+                searchPredicate(search, query),
+                sort,
+                pagination
+            )
         );
         return Page.deferred(
             content,
@@ -166,12 +170,12 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected long internalCount(@Nullable String search, @Nullable String query) {
-        return JpaQueryHelpers.query(
+        return JpaQueryExecutor.exec(
             entityManager,
-            entityClass,
-            Long.class,
-            (root, cb) -> searchPredicateBuilder.build(root, cb, entityManager.getMetamodel(), search, query),
-            JpaCriteriaExecutor.count()
+            new EntityCountQuery<>(
+                entityClass,
+                searchPredicate(search, query)
+            )
         );
     }
 
@@ -180,12 +184,12 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected boolean internalExists(ID id) {
-        return JpaQueryHelpers.query(
+        return JpaQueryExecutor.exec(
             entityManager,
-            entityClass,
-            Long.class,
-            (root, cb) -> buildIdPredicate(root, cb, id),
-            JpaCriteriaExecutor.exists()
+            new EntityExistsQuery<>(
+                entityClass,
+                buildIdPredicate(id)
+            )
         );
     }
 
@@ -222,8 +226,18 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
         return JpaUtils.requireTransaction(entityManager, function);
     }
 
-    protected Predicate buildIdPredicate(Root<ENTITY> root, CriteriaBuilder cb, ID id) {
-        return cb.equal(root.get(JpaUtils.getIdFieldName(entityManager.getMetamodel(), entityClass)), id);
+    protected JpaPredicate<ENTITY> buildIdPredicate(ID id) {
+        return JpaPredicate.byId(entityManager.getMetamodel(), id);
     }
 
+    /**
+     * The full-text search and RSQL predicate from the configured {@link SearchPredicateBuilder}.
+     *
+     * @param search normalized full-text search string, or {@code null}
+     * @param query  RSQL query expression, or {@code null}
+     * @return the search predicate
+     */
+    protected final JpaPredicate<ENTITY> searchPredicate(@Nullable String search, @Nullable String query) {
+        return searchPredicateBuilder.bind(entityManager.getMetamodel(), search, query);
+    }
 }
