@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
@@ -37,8 +38,14 @@ public interface JpaQuery<SELECTED, RESULT, RETURN>
             JpaSource<SELECTED, RESULT>,
             JpaSelection<SELECTED, RESULT>,
             JpaPredicate<SELECTED>,
+            JpaGroupBy<SELECTED>,
             JpaOrder<SELECTED>,
             JpaResult<RESULT, RETURN> {
+
+    @Override
+    default List<Expression<?>> groupBy(From<?, SELECTED> from, CriteriaBuilder cb) {
+        return List.of();
+    }
 
     @Override
     default List<Order> orders(From<?, SELECTED> from, CriteriaBuilder cb, Metamodel metamodel) {
@@ -74,6 +81,11 @@ public interface JpaQuery<SELECTED, RESULT, RETURN>
             @Override
             public @Nullable Predicate build(From<?, SELECTED> from, CriteriaBuilder cb) {
                 return self.build(from, cb);
+            }
+
+            @Override
+            public List<Expression<?>> groupBy(From<?, SELECTED> from, CriteriaBuilder cb) {
+                return self.groupBy(from, cb);
             }
 
             @Override

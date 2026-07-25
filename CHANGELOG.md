@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.0.1] — 2026-07-25
+
+### Added
+
+#### `freddy-cruder-jpa`
+- `JpaGroupBy` — new axis for the query model, building the `GROUP BY` clause. `JpaGroupBy.self()`
+  groups by the query source as a whole, letting a projection select any of its columns freely
+  alongside an aggregate over a joined plural association; `JpaGroupBy.none()` (the default) applies
+  no grouping.
+- `ListQuery`/`FindQuery` gained a `groupBy` parameter (optional — existing constructors without it
+  still work), and `JpaProjectedCrudProvider`/`JpaOwnedProjectedCrudProvider` gained a `groupBy()`
+  hook applied to `page`/`find`, defaulting to no grouping.
+
+This is purely additive — every new parameter has a matching overload/default, so existing code keeps
+compiling and behaving the same.
+
+---
+
 ## [3.0.0] — 2026-07-21
 
 This release adds MongoDB as a first-class store alongside JPA, and replaces the old ad-hoc Criteria

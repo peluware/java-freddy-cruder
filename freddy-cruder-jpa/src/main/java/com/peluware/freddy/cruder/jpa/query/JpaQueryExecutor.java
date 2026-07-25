@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
@@ -22,7 +23,57 @@ public final class JpaQueryExecutor {
     }
 
     /**
-     * Composes and runs a query from its axes plus a result strategy.
+     * Composes and runs a query from its axes plus a result strategy, with explicit grouping.
+     *
+     * @param em         the entity manager
+     * @param criteria   creates the criteria query for the result type
+     * @param source     builds the query source
+     * @param selection  builds the {@code SELECT} clause
+     * @param predicate  builds the {@code WHERE} predicate
+     * @param groupBy    builds the {@code GROUP BY} clause
+     * @param order      builds the {@code ORDER BY} clause
+     * @param result     executes the query and materializes the return value
+     * @return the value produced by {@code result}
+     */
+    public static <SELECTED, RESULT, RETURN> RETURN exec(
+        EntityManager em,
+        JpaCriteria<RESULT> criteria,
+        JpaSource<SELECTED, RESULT> source,
+        JpaSelection<SELECTED, RESULT> selection,
+        JpaPredicate<SELECTED> predicate,
+        JpaGroupBy<SELECTED> groupBy,
+        JpaOrder<SELECTED> order,
+        JpaResult<RESULT, RETURN> result
+    ) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<RESULT> cq = criteria.create(cb);
+
+        From<?, SELECTED> from = source.from(cq);
+
+        cq.select(selection.select(from, cb));
+
+        List<Expression<?>> groupings = groupBy.groupBy(from, cb);
+        if (!groupings.isEmpty()) {
+            cq.groupBy(groupings);
+        }
+
+        Predicate where = predicate.build(from, cb);
+        if (where != null) {
+            cq.where(where);
+        }
+
+        List<Order> orders = order.orders(from, cb, em.getMetamodel());
+        if (!orders.isEmpty()) {
+            cq.orderBy(orders);
+        }
+
+        TypedQuery<RESULT> query = em.createQuery(cq);
+
+        return result.result(query);
+    }
+
+    /**
+     * Composes and runs a query from its axes plus a result strategy, without grouping.
      *
      * @param em         the entity manager
      * @param criteria   creates the criteria query for the result type
@@ -42,26 +93,7 @@ public final class JpaQueryExecutor {
         JpaOrder<SELECTED> order,
         JpaResult<RESULT, RETURN> result
     ) {
-        CriteriaBuilder cb = em.getCriteriaBuilder();
-        CriteriaQuery<RESULT> cq = criteria.create(cb);
-
-        From<?, SELECTED> from = source.from(cq);
-
-        cq.select(selection.select(from, cb));
-
-        Predicate where = predicate.build(from, cb);
-        if (where != null) {
-            cq.where(where);
-        }
-
-        List<Order> orders = order.orders(from, cb, em.getMetamodel());
-        if (!orders.isEmpty()) {
-            cq.orderBy(orders);
-        }
-
-        TypedQuery<RESULT> query = em.createQuery(cq);
-
-        return result.result(query);
+        return exec(em, criteria, source, selection, predicate, JpaGroupBy.none(), order, result);
     }
 
     /**
@@ -104,7 +136,7 @@ public final class JpaQueryExecutor {
         EntityManager em,
         JpaQuery<SELECTED, RESULT, RETURN> query
     ) {
-        return exec(em, query, query, query, query, query, query);
+        return exec(em, query, query, query, query, query, query, query);
     }
 
     // ------------------------------------------------------------

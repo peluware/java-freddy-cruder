@@ -166,8 +166,8 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
             entityManager,
             new EntityCountQuery<>(
                 entityClass,
-                filtered(searchPredicate(search, query))).addHints(getQueryHints()
-            )
+                filtered(searchPredicate(search, query))
+            ).addHints(getQueryHints())
         );
     }
 

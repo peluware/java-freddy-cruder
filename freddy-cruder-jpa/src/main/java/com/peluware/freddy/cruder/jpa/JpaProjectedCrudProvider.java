@@ -10,6 +10,7 @@ import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
 import com.peluware.freddy.cruder.jpa.query.FindQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaGroupBy;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
 import com.peluware.freddy.cruder.jpa.query.JpaSelection;
@@ -167,6 +168,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
                 JpaSource.root(entityClass),
                 selection(),
                 filtered(searchPredicate(search, query)),
+                groupBy(),
                 sort,
                 pagination
             ).addHints(getQueryHints())
@@ -184,6 +186,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
                 JpaSource.root(entityClass),
                 selection(),
                 filtered(buildIdPredicate(id)),
+                groupBy(),
                 () -> new NotFoundEntityException(entityClass, id)
             ).addHints(getQueryHints())
         );
@@ -345,6 +348,21 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      */
     protected JpaPredicate<ENTITY> predicateFilter() {
         return JpaPredicate.all();
+    }
+
+    /**
+     * The {@code GROUP BY} clause applied to {@code page}/{@code find}, for projections that
+     * aggregate over a plural association (e.g. summing a child collection's field) alongside the
+     * entity's own columns. Override with {@link JpaGroupBy#self()} to group by the entity root —
+     * grouping by the whole entity, not just its id, lets the projection select any of its other
+     * columns freely:
+     *
+     * <pre>{@code JpaGroupBy.self()}</pre>
+     *
+     * @return the grouping expressions, or {@link JpaGroupBy#none()} for none (the default)
+     */
+    protected JpaGroupBy<ENTITY> groupBy() {
+        return JpaGroupBy.none();
     }
 
     /**

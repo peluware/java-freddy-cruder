@@ -3,11 +3,13 @@ package com.peluware.freddy.cruder.jpa.query;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Selection;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -24,6 +26,7 @@ public class FindQuery<T, R> implements JpaQuery<T, R, R> {
     private final JpaSource<T, R> source;
     private final JpaSelection<T, R> selection;
     private final JpaPredicate<T> filter;
+    private final JpaGroupBy<T> groupBy;
     private final Supplier<? extends RuntimeException> onEmpty;
 
     public FindQuery(
@@ -31,13 +34,28 @@ public class FindQuery<T, R> implements JpaQuery<T, R, R> {
         JpaSource<T, R> source,
         JpaSelection<T, R> selection,
         JpaPredicate<T> filter,
+        JpaGroupBy<T> groupBy,
         Supplier<? extends RuntimeException> onEmpty
     ) {
         this.resultClass = resultClass;
         this.source = source;
         this.selection = selection;
         this.filter = filter;
+        this.groupBy = groupBy;
         this.onEmpty = onEmpty;
+    }
+
+    /**
+     * Same as above, without grouping.
+     */
+    public FindQuery(
+        Class<R> resultClass,
+        JpaSource<T, R> source,
+        JpaSelection<T, R> selection,
+        JpaPredicate<T> filter,
+        Supplier<? extends RuntimeException> onEmpty
+    ) {
+        this(resultClass, source, selection, filter, JpaGroupBy.none(), onEmpty);
     }
 
     @Override
@@ -58,6 +76,11 @@ public class FindQuery<T, R> implements JpaQuery<T, R, R> {
     @Override
     public final @Nullable Predicate build(From<?, T> from, CriteriaBuilder cb) {
         return filter.build(from, cb);
+    }
+
+    @Override
+    public final List<Expression<?>> groupBy(From<?, T> from, CriteriaBuilder cb) {
+        return groupBy.groupBy(from, cb);
     }
 
     @Override

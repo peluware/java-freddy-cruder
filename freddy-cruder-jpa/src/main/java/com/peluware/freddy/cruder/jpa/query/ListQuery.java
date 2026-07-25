@@ -5,6 +5,7 @@ import com.peluware.domain.Sort;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
@@ -37,11 +38,33 @@ public class ListQuery<T, R> implements JpaQuery<T, R, List<R>> {
     private final JpaSource<T, R> source;
     private final JpaSelection<T, R> selection;
     private final JpaPredicate<T> filter;
+    private final JpaGroupBy<T> groupBy;
     private final Sort sort;
     private final Pagination pagination;
 
     /**
-     * Selects {@code selection} from {@code source}, filtered, sorted and paginated.
+     * Selects {@code selection} from {@code source}, filtered, grouped, sorted and paginated.
+     */
+    public ListQuery(
+        Class<R> resultClass,
+        JpaSource<T, R> source,
+        JpaSelection<T, R> selection,
+        JpaPredicate<T> filter,
+        JpaGroupBy<T> groupBy,
+        Sort sort,
+        Pagination pagination
+    ) {
+        this.resultClass = resultClass;
+        this.source = source;
+        this.selection = selection;
+        this.filter = filter;
+        this.groupBy = groupBy;
+        this.sort = sort;
+        this.pagination = pagination;
+    }
+
+    /**
+     * Selects {@code selection} from {@code source}, filtered, sorted and paginated — no grouping.
      */
     public ListQuery(
         Class<R> resultClass,
@@ -51,12 +74,7 @@ public class ListQuery<T, R> implements JpaQuery<T, R, List<R>> {
         Sort sort,
         Pagination pagination
     ) {
-        this.resultClass = resultClass;
-        this.source = source;
-        this.selection = selection;
-        this.filter = filter;
-        this.sort = sort;
-        this.pagination = pagination;
+        this(resultClass, source, selection, filter, JpaGroupBy.none(), sort, pagination);
     }
 
     /**
@@ -115,6 +133,11 @@ public class ListQuery<T, R> implements JpaQuery<T, R, List<R>> {
     @Override
     public final @Nullable Predicate build(From<?, T> from, CriteriaBuilder cb) {
         return filter.build(from, cb);
+    }
+
+    @Override
+    public final List<Expression<?>> groupBy(From<?, T> from, CriteriaBuilder cb) {
+        return groupBy.groupBy(from, cb);
     }
 
     @Override

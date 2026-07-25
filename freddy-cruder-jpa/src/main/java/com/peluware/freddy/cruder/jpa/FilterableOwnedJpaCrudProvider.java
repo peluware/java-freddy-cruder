@@ -137,7 +137,11 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     protected ENTITY internalFind(OWNER_ID ownerId, ID id) throws NotFoundEntityException {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityFindQuery<>(entityClass, filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))), () -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id))).addHints(getQueryHints())
+            new EntityFindQuery<>(
+                entityClass,
+                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
+                () -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id))
+            ).addHints(getQueryHints())
         );
     }
 
@@ -173,8 +177,8 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
             entityManager,
             new EntityCountQuery<>(
                 entityClass,
-                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query)))).addHints(getQueryHints()
-            )
+                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query)))
+            ).addHints(getQueryHints())
         );
     }
 
@@ -187,8 +191,8 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
             entityManager,
             new EntityExistsQuery<>(
                 entityClass,
-                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id)))).addHints(getQueryHints()
-            )
+                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id)))
+            ).addHints(getQueryHints())
         );
     }
 

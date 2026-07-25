@@ -12,6 +12,7 @@ import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
 import com.peluware.freddy.cruder.jpa.query.FindQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaGroupBy;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
 import com.peluware.freddy.cruder.jpa.query.JpaSelection;
@@ -50,8 +51,7 @@ import java.util.function.Supplier;
  * @param <INPUT>      the input DTO type for create/update operations
  * @param <OUTPUT>     the output type returned to the consumer
  */
-public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT>
-    implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
+public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT> implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
 
     protected final EntityManager entityManager;
     protected final SearchPredicateBuilder searchPredicateBuilder;
@@ -163,6 +163,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
                 JpaSource.root(entityClass),
                 selection(),
                 filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+                groupBy(),
                 sort,
                 pagination
             ).addHints(getQueryHints())
@@ -180,6 +181,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
                 JpaSource.root(entityClass),
                 selection(),
                 filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
+                groupBy(),
                 () -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id))
             ).addHints(getQueryHints())
         );
@@ -347,6 +349,21 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     }
 
     /**
+     * The {@code GROUP BY} clause applied to {@code page}/{@code find}, for projections that
+     * aggregate over a plural association (e.g. summing a child collection's field) alongside the
+     * entity's own columns. Override with {@link JpaGroupBy#self()} to group by the entity root —
+     * grouping by the whole entity, not just its id, lets the projection select any of its other
+     * columns freely:
+     *
+     * <pre>{@code JpaGroupBy.self()}</pre>
+     *
+     * @return the grouping expressions, or {@link JpaGroupBy#none()} for none (the default)
+     */
+    protected JpaGroupBy<ENTITY> groupBy() {
+        return JpaGroupBy.none();
+    }
+
+    /**
      * Builds a predicate that restricts queries to entities belonging to the given owner.
      *
      * <p>
@@ -432,7 +449,11 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     protected ENTITY loadForMutation(OWNER_ID ownerId, ID id) throws NotFoundEntityException {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityFindQuery<>(entityClass, filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))), () -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id))).addHints(getQueryHints())
+            new EntityFindQuery<>(
+                entityClass,
+                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
+                () -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id))
+            ).addHints(getQueryHints())
         );
     }
 
@@ -506,7 +527,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     // ------------------------------------------------------------
 
     /**
-     * Hook executed after {@link #internalCreate(Object)}, inside the same transaction, with the
+     * Hook executed after {@link #internalCreate(OWNER_ID, ENTITY)}, inside the same transaction, with the
      * owner scope, the input DTO and the persisted entity (its generated identifier is available).
      *
      * <p>Override to persist dependent entities that need the parent's identifier. This is provider
@@ -521,7 +542,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     }
 
     /**
-     * Hook executed after {@link #internalUpdate(Object)}, inside the same transaction, with the
+     * Hook executed after {@link #internalUpdate(OWNER_ID, ENTITY)}, inside the same transaction, with the
      * owner scope, the input DTO and the persisted entity.
      *
      * <p>Override to reconcile dependent entities from the input DTO after the parent is updated.
