@@ -40,7 +40,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
 </dependency>
 ```
 
@@ -49,7 +49,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
 </dependency>
 ```
 
@@ -58,7 +58,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
 </dependency>
 ```
 
@@ -67,7 +67,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
 </dependency>
 ```
 
@@ -76,7 +76,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-mongodb</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
 </dependency>
 ```
 
@@ -85,7 +85,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
 </dependency>
 ```
 

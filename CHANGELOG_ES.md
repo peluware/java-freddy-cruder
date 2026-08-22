@@ -6,6 +6,43 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ---
 
+## [3.1.0] — 2026-08-22
+
+Sube la integración opcional con `omni-search` a 2.5.0. Ninguna API Java de `freddy-cruder` cambia —
+es un bump de dependencia transitiva — pero cambia el **comportamiento** de la búsqueda RSQL, así que
+leé la nota de abajo antes de actualizar si tu proyecto busca sobre campos nulables.
+
+### ⚠️ Cambio de comportamiento — `field==null` en queries RSQL
+
+`omni-search` 2.5.0 introduce operadores de nulidad dedicados y sin valor, y deja de tratar el texto
+literal `"null"` como un valor mágico:
+
+| Query | 2.4.0 y anteriores | 2.5.0+ |
+|---|---|---|
+| `field==null` | chequeo `IS NULL` | comparación literal contra el string `"null"` |
+| `field=null=` | *(no soportado)* | chequeo `IS NULL` |
+| `field=notnull=` | *(no soportado)* | chequeo `IS NOT NULL` |
+
+Si alguna query RSQL que tu aplicación envía — desde un filtro guardado, un frontend, o un script —
+usa `field==null` para decir "es nulo", **dejará de matchear esas filas en silencio** tras actualizar,
+porque ahora matchea la palabra literal "null" en su lugar. Buscá `field==null` en tu código y
+reemplazalo por `field=null=`, y tratá `field==''` como el string vacío de ahora en más — ya no se
+coerciona a `null`.
+
+Esto solo afecta a quienes consumen `freddy-cruder-jpa`/`freddy-cruder-mongodb` usando
+`OmniSearchPredicateAdapter`/`OmniSearchFilterAdapter` (el `SearchPredicateBuilder`/`SearchFilterBuilder`
+por defecto) con queries RSQL que filtran por nulidad. Un `SearchPredicateBuilder`/`SearchFilterBuilder`
+propio no se ve afectado.
+
+### Cambiado
+
+- La dependencia opcional `omni-search-jpa`/`omni-search-mongodb` pasa a 2.5.0, que bifurca el parser
+  RSQL a un fork mantenido (`io.github.nstdio:rsql-parser`, mismos paquetes `cz.jirutka.rsql.parser.*`
+  — no hace falta cambiar código fuente). Si tu proyecto también declara
+  `cz.jirutka.rsql:rsql-parser` directamente, quítala para evitar dos jars proveyendo los mismos paquetes.
+
+---
+
 ## [3.0.1] — 2026-07-25
 
 ### Añadido

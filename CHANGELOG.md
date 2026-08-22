@@ -6,6 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.1.0] — 2026-08-22
+
+Bumps the optional `omni-search` integration to 2.5.0. No Java API of `freddy-cruder` changes — this
+is a transitive dependency bump — but it changes RSQL search **behavior**, so read the note below
+before upgrading if your project searches on nullable fields.
+
+### ⚠️ Behavior change — `field==null` in RSQL queries
+
+`omni-search` 2.5.0 introduces dedicated, value-less null operators and stops treating the literal
+text `"null"` as a magic value:
+
+| Query | 2.4.0 and earlier | 2.5.0+ |
+|---|---|---|
+| `field==null` | `IS NULL` check | literal string `"null"` match |
+| `field=null=` | *(not supported)* | `IS NULL` check |
+| `field=notnull=` | *(not supported)* | `IS NOT NULL` check |
+
+If any RSQL query your application sends — from a saved filter, a frontend, or a script — uses
+`field==null` to mean "is null", **it will silently stop matching those rows** after upgrading, since
+it now matches the literal word "null" instead. Search `field==null` in your codebase and replace it
+with `field=null=`, and treat `field==''` as the empty string from here on — it is no longer coerced
+to `null`.
+
+This only affects `freddy-cruder-jpa`/`freddy-cruder-mongodb` consumers using `OmniSearchPredicateAdapter`/
+`OmniSearchFilterAdapter` (the default `SearchPredicateBuilder`/`SearchFilterBuilder`) with RSQL query
+strings that filter on nullability. A custom `SearchPredicateBuilder`/`SearchFilterBuilder` is unaffected.
+
+### Changed
+
+- The optional `omni-search-jpa`/`omni-search-mongodb` dependency moved to 2.5.0, which forks the RSQL
+  parser to a maintained fork (`io.github.nstdio:rsql-parser`, same `cz.jirutka.rsql.parser.*`
+  packages — no source changes needed). If your project also declares
+  `cz.jirutka.rsql:rsql-parser` directly, remove it to avoid two jars providing the same packages.
+
+---
+
 ## [3.0.1] — 2026-07-25
 
 ### Added
