@@ -38,9 +38,9 @@ public interface SearchPredicateBuilder {
      * @param search   normalized full-text search string, or {@code null}
      * @param query    RSQL filter expression, or {@code null}
      * @param <E>      the entity type of the query from
-     * @return a predicate to apply to the query; must not be {@code null}
+     * @return a predicate to apply to the query, or {@code null} to leave it unrestricted
      */
-    <E> Predicate build(From<?, E> from, CriteriaBuilder cb, Metamodel metamodel, @Nullable String search, @Nullable String query);
+    <E> @Nullable Predicate build(From<?, E> from, CriteriaBuilder cb, Metamodel metamodel, @Nullable String search, @Nullable String query);
 
     /**
      * Binds the metamodel and the search/query strings into a {@link JpaPredicate}, ready to use

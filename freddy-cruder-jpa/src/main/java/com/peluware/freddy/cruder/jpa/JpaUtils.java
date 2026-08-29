@@ -93,6 +93,12 @@ public class JpaUtils {
 
             if (jpaAttribute.isAssociation()) {
 
+                if (!jpaAttribute.isCollection()
+                    && i == graphLength - 2
+                    && isSingleIdNamed(metamodel, attributeType, graph[i + 1])) {
+                    return currentRoot.get(attribute).get(graph[i + 1]);
+                }
+
                 classMetadata = metamodel.managedType(attributeType);
                 currentRoot = getOrCreateJoin((From<?, ?>) currentRoot, attribute, joinType);
 
@@ -121,6 +127,16 @@ public class JpaUtils {
         return currentRoot;
     }
 
+
+    /**
+     * Whether {@code attribute} is the single identifier of {@code entityClass}. Entities mapped
+     * with {@code @IdClass} answer {@code false}: they have no single id attribute to name.
+     */
+    private static boolean isSingleIdNamed(Metamodel metamodel, Class<?> entityClass, String attribute) {
+        var entityType = metamodel.entity(entityClass);
+        return entityType.hasSingleIdAttribute()
+            && entityType.getId(entityType.getIdType().getJavaType()).getName().equals(attribute);
+    }
 
     /**
      * Verifies if a class metamodel has the specified property.

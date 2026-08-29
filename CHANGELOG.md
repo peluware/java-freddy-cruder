@@ -6,37 +6,58 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.2.0] — 2026-08-29
+
+### Fixed
+
+#### `freddy-cruder-jpa`
+
+- `JpaUtils.findPath` no longer forces a join just to read the id of a single-valued association
+  (e.g. `"customer.id"`). When the path's last segment is the target's own id, it now navigates the
+  path directly (`from.get("customer").get("id")`), which most JPA providers resolve to the local
+  foreign-key column without touching the associated table. This also fixes `isNull`/`isNotNull`
+  checks on such a path, which previously could never match: an `INNER` join was silently dropping
+  rows with a null association before the predicate was ever evaluated.
+
+  This shortcut only skips the join for the **owning** side of the association (`@ManyToOne`, or an
+  owning `@OneToOne` with `@JoinColumn`) — where the id is already the local foreign-key column, so
+  the requested `joinType` (`INNER`/`LEFT`) is irrelevant either way. For the **inverse** side of a
+  `@OneToOne` (`mappedBy`), a join is still required and still happens; the only known gap is that the
+  implicit path navigation used to reach it defaults to `INNER` per JPQL, regardless of the `joinType`
+  originally requested — so ordering/filtering by the id of a nullable inverse `@OneToOne` could drop
+  rows that a requested `LEFT` join would have kept. Inverse-side single-valued associations are rare
+  in a well-modeled domain; this edge case is left as a known limitation for now, not a silent-data-loss
+  risk — the join always happens, only its type can differ from what was requested.
+- `SearchPredicateBuilder.build` (and `OmniSearchPredicateAdapter`'s implementation) is now annotated
+  `@Nullable` on its return type, matching the "`null` means no restriction" contract the rest of the
+  query model (`JpaPredicate`) already followed. No behavior change — this corrects a stale javadoc
+  that said the return "must not be null".
+
+---
+
 ## [3.1.0] — 2026-08-22
 
-Bumps the optional `omni-search` integration to 2.5.0. No Java API of `freddy-cruder` changes — this
-is a transitive dependency bump — but it changes RSQL search **behavior**, so read the note below
-before upgrading if your project searches on nullable fields.
+Bumps the optional `omni-search` integration to 2.5.0. No Java API of `freddy-cruder` changes — this is a transitive dependency bump — but it changes RSQL search **behavior**, so read the note below before upgrading if your project searches on nullable fields.
 
 ### ⚠️ Behavior change — `field==null` in RSQL queries
 
-`omni-search` 2.5.0 introduces dedicated, value-less null operators and stops treating the literal
-text `"null"` as a magic value:
+`omni-search` 2.5.0 introduces dedicated, value-less null operators and stops treating the literal text `"null"` as a magic value:
 
-| Query | 2.4.0 and earlier | 2.5.0+ |
-|---|---|---|
-| `field==null` | `IS NULL` check | literal string `"null"` match |
-| `field=null=` | *(not supported)* | `IS NULL` check |
-| `field=notnull=` | *(not supported)* | `IS NOT NULL` check |
+| Query            | 2.4.0 and earlier | 2.5.0+                        |
+|------------------|-------------------|-------------------------------|
+| `field==null`    | `IS NULL` check   | literal string `"null"` match |
+| `field=null=`    | *(not supported)* | `IS NULL` check               |
+| `field=notnull=` | *(not supported)* | `IS NOT NULL` check           |
 
 If any RSQL query your application sends — from a saved filter, a frontend, or a script — uses
-`field==null` to mean "is null", **it will silently stop matching those rows** after upgrading, since
-it now matches the literal word "null" instead. Search `field==null` in your codebase and replace it
-with `field=null=`, and treat `field==''` as the empty string from here on — it is no longer coerced
-to `null`.
+`field==null` to mean "is null", **it will silently stop matching those rows** after upgrading, since it now matches the literal word "null" instead. Search `field==null` in your codebase and replace it with `field=null=`, and treat `field==''` as the empty string from here on — it is no longer coerced to `null`.
 
 This only affects `freddy-cruder-jpa`/`freddy-cruder-mongodb` consumers using `OmniSearchPredicateAdapter`/
-`OmniSearchFilterAdapter` (the default `SearchPredicateBuilder`/`SearchFilterBuilder`) with RSQL query
-strings that filter on nullability. A custom `SearchPredicateBuilder`/`SearchFilterBuilder` is unaffected.
+`OmniSearchFilterAdapter` (the default `SearchPredicateBuilder`/`SearchFilterBuilder`) with RSQL query strings that filter on nullability. A custom `SearchPredicateBuilder`/`SearchFilterBuilder` is unaffected.
 
 ### Changed
 
-- The optional `omni-search-jpa`/`omni-search-mongodb` dependency moved to 2.5.0, which forks the RSQL
-  parser to a maintained fork (`io.github.nstdio:rsql-parser`, same `cz.jirutka.rsql.parser.*`
+- The optional `omni-search-jpa`/`omni-search-mongodb` dependency moved to 2.5.0, which forks the RSQL parser to a maintained fork (`io.github.nstdio:rsql-parser`, same `cz.jirutka.rsql.parser.*`
   packages — no source changes needed). If your project also declares
   `cz.jirutka.rsql:rsql-parser` directly, remove it to avoid two jars providing the same packages.
 
@@ -47,80 +68,69 @@ strings that filter on nullability. A custom `SearchPredicateBuilder`/`SearchFil
 ### Added
 
 #### `freddy-cruder-jpa`
+
 - `JpaGroupBy` — new axis for the query model, building the `GROUP BY` clause. `JpaGroupBy.self()`
-  groups by the query source as a whole, letting a projection select any of its columns freely
-  alongside an aggregate over a joined plural association; `JpaGroupBy.none()` (the default) applies
-  no grouping.
-- `ListQuery`/`FindQuery` gained a `groupBy` parameter (optional — existing constructors without it
-  still work), and `JpaProjectedCrudProvider`/`JpaOwnedProjectedCrudProvider` gained a `groupBy()`
+  groups by the query source as a whole, letting a projection select any of its columns freely alongside an aggregate over a joined plural association; `JpaGroupBy.none()` (the default) applies no grouping.
+- `ListQuery`/`FindQuery` gained a `groupBy` parameter (optional — existing constructors without it still work), and `JpaProjectedCrudProvider`/`JpaOwnedProjectedCrudProvider` gained a `groupBy()`
   hook applied to `page`/`find`, defaulting to no grouping.
 
-This is purely additive — every new parameter has a matching overload/default, so existing code keeps
-compiling and behaving the same.
+This is purely additive — every new parameter has a matching overload/default, so existing code keeps compiling and behaving the same.
 
 ---
 
 ## [3.0.0] — 2026-07-21
 
-This release adds MongoDB as a first-class store alongside JPA, and replaces the old ad-hoc Criteria
-API helpers with a small, composable query model. Several APIs were renamed or reshaped along the
-way, which is why this is a major version.
+This release adds MongoDB as a first-class store alongside JPA, and replaces the old ad-hoc Criteria API helpers with a small, composable query model. Several APIs were renamed or reshaped along the way, which is why this is a major version.
 
 ### Why 3.0.0
 
 `freddy-cruder-jpa` grew organically around a handful of static helpers (`JpaQueryHelpers`,
-`JpaCriteriaExecutor`, `JpaCriteriaCallback`). They worked, but every new query shape meant more
-overloads. This release replaces them with a small set of composable pieces — a source, a selection,
-a filter, an ordering, and a result — that combine into reusable, named query objects
-(`CountQuery`, `ExistsQuery`, `ListQuery`, `FindQuery`, and their `Entity*` shorthands for the common
+`JpaCriteriaExecutor`, `JpaCriteriaCallback`). They worked, but every new query shape meant more overloads. This release replaces them with a small set of composable pieces — a source, a selection, a filter, an ordering, and a result — that combine into reusable, named query objects (`CountQuery`, `ExistsQuery`, `ListQuery`, `FindQuery`, and their `Entity*` shorthands for the common
 "whole entity" case). The same shape now also powers MongoDB, so both stores read the same way.
 
 ### Added
 
 #### `freddy-cruder-mongodb` *(new module)*
-- `MongoCrudProvider` / `FilterableMongoCrudProvider` / `FilterableOwnedMongoCrudProvider` — the
-  MongoDB counterparts of the JPA providers, built on the MongoDB sync driver.
-- `SearchFilterBuilder` — pluggable full-text/RSQL filtering strategy, with `omni-search-mongodb` as
-  the optional default via `OmniSearchFilterAdapter`.
+
+- `MongoCrudProvider` / `FilterableMongoCrudProvider` / `FilterableOwnedMongoCrudProvider` — the MongoDB counterparts of the JPA providers, built on the MongoDB sync driver.
+- `SearchFilterBuilder` — pluggable full-text/RSQL filtering strategy, with `omni-search-mongodb` as the optional default via `OmniSearchFilterAdapter`.
 
 #### `freddy-cruder-spring-data-mongodb` *(new module)*
-- `MongoSearchRepository` / `DefaultMongoSearchRepository` / `MongoSearchEngine` — the search
-  fragment for Spring Data MongoDB repositories, autoconfigured the same way as the JPA one.
+
+- `MongoSearchRepository` / `DefaultMongoSearchRepository` / `MongoSearchEngine` — the search fragment for Spring Data MongoDB repositories, autoconfigured the same way as the JPA one.
 
 #### `freddy-cruder-jpa`
-- A composable query model in the new `com.peluware.freddy.cruder.jpa.query` package: build a query
-  from small independent pieces (source, selection, filter, ordering, result, hints) and run it with
+
+- A composable query model in the new `com.peluware.freddy.cruder.jpa.query` package: build a query from small independent pieces (source, selection, filter, ordering, result, hints) and run it with
   `JpaQueryExecutor`, or chain `query.exec(entityManager)` directly.
 - Reusable query objects — `CountQuery`, `ExistsQuery`, `ListQuery`, `FindQuery` — plus `Entity*`
   variants for the common case of a whole entity rooted at its class.
-- `JpaHints` — named constants and factories for standard Jakarta Persistence query hints (fetch/load
-  graph, timeouts, cache mode), instead of hand-typed hint strings.
-- `JpaProjectedCrudProvider` / `JpaOwnedProjectedCrudProvider` — read entities through a lean
-  projection (e.g. a `cb.construct(...)` DTO) instead of loading the full entity, while writes still
-  operate on the real entity.
+- `JpaHints` — named constants and factories for standard Jakarta Persistence query hints (fetch/load graph, timeouts, cache mode), instead of hand-typed hint strings.
+- `JpaProjectedCrudProvider` / `JpaOwnedProjectedCrudProvider` — read entities through a lean projection (e.g. a `cb.construct(...)` DTO) instead of loading the full entity, while writes still operate on the real entity.
 
 #### `freddy-cruder-core`
+
 - `afterCreate(INPUT, ENTITY)` / `afterUpdate(INPUT, ENTITY)` hooks on `EntityCrudProvider` and
-  `OwnedEntityCrudProvider` (owner-scoped variants), run right after persistence with the input DTO
-  and the now-persisted entity available. Useful for persisting dependent entities that need the
-  parent's generated identifier and don't have a direct relationship at the store level.
+  `OwnedEntityCrudProvider` (owner-scoped variants), run right after persistence with the input DTO and the now-persisted entity available. Useful for persisting dependent entities that need the parent's generated identifier and don't have a direct relationship at the store level.
 
 ### Changed
 
 #### `freddy-cruder-spring-data`
+
 - `SearchRepositoryEngine` renamed to `SearchEngine`.
 
 #### `freddy-cruder-spring-data-jpa`
+
 - `JpaSearchRepositoryEngine` renamed to `JpaSearchEngine`.
 
 #### `freddy-cruder-jpa`
-- `buildIdPredicate` and `buildOwnerPredicate` now build a reusable `JpaPredicate` instead of a raw
-  Criteria `Predicate`, and take just the id/owner value — the entity source is supplied by the query
-  that uses them, not passed in by the caller.
+
+- `buildIdPredicate` and `buildOwnerPredicate` now build a reusable `JpaPredicate` instead of a raw Criteria `Predicate`, and take just the id/owner value — the entity source is supplied by the query that uses them, not passed in by the caller.
 
 ### Removed
 
 #### `freddy-cruder-jpa`
+
 - `JpaQueryHelpers`, `JpaCriteriaExecutor`, `JpaCriteriaCallback` — replaced by the query model above.
 - The `runQuery` hook on `FilterableOwnedJpaCrudProvider` — no longer needed with the new query model.
 
@@ -128,12 +138,13 @@ a filter, an ordering, and a result — that combine into reusable, named query 
 
 **Renamed engines:**
 
-| Before | After |
-|---|---|
-| `SearchRepositoryEngine` | `SearchEngine` |
+| Before                      | After             |
+|-----------------------------|-------------------|
+| `SearchRepositoryEngine`    | `SearchEngine`    |
 | `JpaSearchRepositoryEngine` | `JpaSearchEngine` |
 
 **Custom predicate overrides**, if you overrode `buildIdPredicate` or `buildOwnerPredicate`:
+
 ```java
 // Before
 protected Predicate buildIdPredicate(Root<ENTITY> root, CriteriaBuilder cb, ID id) {
@@ -147,6 +158,7 @@ protected JpaPredicate<ENTITY> buildIdPredicate(ID id) {
 ```
 
 **Custom Criteria queries**, if you used `JpaQueryHelpers`/`JpaCriteriaExecutor` directly:
+
 ```java
 // Before
 JpaQueryHelpers.query(entityManager, Product.class, Product.class, filter, JpaCriteriaExecutor.list(sort, pagination));
@@ -162,24 +174,28 @@ new EntityListQuery<>(Product.class, filter, sort, pagination).exec(entityManage
 ### Added
 
 #### `freddy-cruder-spring-data-jpa` *(new module)*
+
 - `JpaSearchRepository<T>` — fragment interface for JPA-backed repositories. Extend it alongside `JpaRepository` and the search fragment is wired automatically via `spring.factories`.
 - `DefaultJpaSearchRepository<T>` — fragment implementation backed by `JpaSearchRepositoryEngine`. Implements `RepositoryMetadataAccess` so `RepositoryMethodContext` is available during execution.
 - `JpaSearchRepositoryEngine` — `SearchRepositoryEngine` implementation using JPA Criteria API. Delegates predicate construction to `SearchPredicateBuilder`.
 - `FreddyCruderJpaSearchAutoConfiguration` — autoconfigures `JpaSearchRepositoryEngine` and, when `omni-search-jpa` is on the classpath, `JpaOmniSearchPredicateBuilder`, `JpaOmniSearch`, and `OmniSearchPredicateAdapter` as a `SearchPredicateBuilder`.
 
 #### `freddy-cruder-spring-data`
+
 - `SpringRepositoryCrudProvider` now exposes intersection-type constructors `<R extends CrudRepository<E,ID> & SearchRepository<E>>`. Pass a single repository that satisfies both contracts without needing a named wrapper interface.
 - `SpringPage<T>` — internal bridge type that extends Peluware `Page<T>` while retaining the original Spring `Page<T>`. Eliminates the `SpringPage → PeluwarePage → SpringPage` round trip when `PageController` and `SpringRepositoryCrudProvider` are used together.
 
 ### Removed
 
 #### `freddy-cruder-spring-data`
+
 - **`CrudSearchRepository<ENTITY, ID>`** — removed. Spring Data's fragment mechanism only scans direct, non-`@NoRepositoryBean` interfaces of a concrete repository; this interface was never reachable by that scan and therefore never functional as a fragment enabler. Use `extends JpaRepository<E,ID>, JpaSearchRepository<E>` instead.
 - **`JpaCrudSearchRepository<ENTITY, ID>`** — removed for the same reason.
 
 ### Changed
 
 #### `freddy-cruder-spring-data`
+
 - `SearchRepository` no longer depends on `peluware-domain` types. The overload `findBySearch(String, String, Pagination, Sort)` — which returned `com.peluware.domain.Page<T>` — has been removed. The interface now only declares methods that use Spring Data types (`Pageable`, Spring `Page<T>`). The mutual delegation pattern between the two overloads, which could produce a `StackOverflowError` if neither was overridden, is gone entirely.
 - `SearchRepository.findBySearch` renamed to `findAllBySearch`. The previous name matched Spring Data's `findBy*` query derivation pattern, which caused `QueryCreationException` at startup. The new name avoids that collision.
 - `SearchRepository.findAllBySearch` and `countBySearch` are now `default` methods (throw `UnsupportedOperationException`) instead of abstract. This prevents Spring Data from attempting query derivation for methods that match its naming conventions; the fragment implementation overrides them before they are ever called.
@@ -189,15 +205,19 @@ new EntityListQuery<>(Product.class, filter, sort, pagination).exec(entityManage
 ### Migration
 
 **Repository definition:**
+
 ```java
 // Before (never worked)
-interface ProductRepository extends CrudSearchRepository<Product, Long> {}
+interface ProductRepository extends CrudSearchRepository<Product, Long> {
+}
 
 // After
-interface ProductRepository extends JpaRepository<Product, Long>, JpaSearchRepository<Product> {}
+interface ProductRepository extends JpaRepository<Product, Long>, JpaSearchRepository<Product> {
+}
 ```
 
 **Service constructor:**
+
 ```java
 // Before
 public ProductService(ProductRepository repo) {
@@ -227,25 +247,31 @@ The same philosophy applies to `freddy-cruder-spring-data`: `SearchRepository` d
 ### Breaking Changes
 
 #### `freddy-cruder-core`
+
 - **`CrudProvider` and `OwnedCrudProvider` are now thin composite interfaces.** All operations are defined in atomic `@FunctionalInterface` providers. Code depending on the monolithic interface shape must migrate to the atomic or composed variants.
 
 #### `freddy-cruder-jpa`
+
 - **All provider constructors that accepted `JpaOmniSearchPredicateBuilder` now accept `SearchPredicateBuilder`.** Replace with `OmniSearchPredicateAdapter.ofDefault()` to preserve existing behavior, or provide a custom implementation.
 - **`JpaCrudProvider`, `FilterableJpaCrudProvider`, `FilterableOwnedJpaCrudProvider`** — constructor signatures updated accordingly.
 
 #### `freddy-cruder-spring-data`
-- **`SpringCrudProvider` and `SpringOwnedCrudProvider` deleted.** These interfaces exposed a default `page(Pageable)` method that called `SpringDataAdapters.page(this, ...)` internally. In practice this pattern was frequently misused: calling `this.page(...)` from within a concrete provider subclass bypasses the Spring proxy, so any AOP advice (`@Transactional`, `@Cacheable`, etc.) would silently not apply. Pagination is now handled at the controller level via `PeluwareToSpringAdapters.page(provider, ...)`, where the call goes through the proxy correctly.
+
+- **`SpringCrudProvider` and `SpringOwnedCrudProvider` deleted.** These interfaces exposed a default `page(Pageable)` method that called `SpringDataAdapters.page(this, ...)` internally. In practice this pattern was frequently misused: calling `this.page(...)` from within a concrete provider subclass bypasses the Spring proxy, so any AOP advice (`@Transactional`, `@Cacheable`, etc.) would silently not apply. Pagination is now handled at the controller level via
+  `PeluwareToSpringAdapters.page(provider, ...)`, where the call goes through the proxy correctly.
 - **`SpringEntityCrudProvider` and `SpringOwnedEntityCrudProvider` deleted.** Extend `EntityCrudProvider` / `OwnedEntityCrudProvider` directly.
 - **`SpringDataAdapters` deleted.** Replaced by `SpringToPeluwareAdapters` and `PeluwareToSpringAdapters`.
 
 ### Added
 
 #### `freddy-cruder-core`
+
 - 14 atomic `@FunctionalInterface` providers: `PageProvider`, `FindProvider`, `CountProvider`, `ExistsProvider`, `CreateProvider`, `UpdateProvider`, `DeleteProvider` — and their `Owned*` counterparts.
 - 4 composed interfaces: `ReadProvider`, `WriteProvider`, `OwnedReadProvider`, `OwnedWriteProvider`.
 - `OwnedId<OWNER_ID, ID>` record — composite identifier for owned sub-resources with `toString()` = `"ownerId/id"`.
 
 #### `freddy-cruder-jpa`
+
 - `FilterableOwnedJpaCrudProvider` — JPA implementation of `OwnedEntityCrudProvider` via Criteria API, with `buildOwnerPredicate`, `predicateFilter`, `buildSearchPredicate`, `buildIdPredicate`, `getQueryHints()`, and `runQuery` hooks.
 - `SearchPredicateBuilder` — `@FunctionalInterface` decoupling JPA providers from any search library.
 - `OmniSearchPredicateAdapter` — bridges `JpaOmniSearchPredicateBuilder` to `SearchPredicateBuilder`. Default behavior unchanged via `ofDefault()`.
@@ -254,6 +280,7 @@ The same philosophy applies to `freddy-cruder-spring-data`: `SearchRepository` d
 - `JpaUtils.requireTransaction(EntityManager, Supplier)` — new overload with JTA compatibility.
 
 #### `freddy-cruder-spring-data`
+
 - `SpringToPeluwareAdapters` — Spring → peluware type conversions: `toPagination`, `toSort`, `toOrders`, `toPage`, `applyAsPage`.
 - `PeluwareToSpringAdapters` — peluware → Spring conversions and execution helpers: `toSort`, `toPageable`, `toPage`, `apply`, `applyAsPage`, `page`.
 - `SearchRepository` — search abstraction with bidirectional default delegation between `findBySearch(Pagination, Sort)` and `findBySearch(Pageable)`.
@@ -262,6 +289,7 @@ The same philosophy applies to `freddy-cruder-spring-data`: `SearchRepository` d
 ### Migration Guide
 
 **JPA providers:**
+
 ```java
 // Before
 new MyProvider(entityManager, jpaOmniSearchPredicateBuilder);
@@ -275,24 +303,24 @@ new MyProvider(entityManager, (root, cb, metamodel, search, query) -> cb.conjunc
 
 **`SpringDataAdapters`:**
 
-| Before | After |
-|---|---|
-| `SpringDataAdapters.toPeluwarePagination(p)` | `SpringToPeluwareAdapters.toPagination(p)` |
-| `SpringDataAdapters.toPeluwareSort(s)` | `SpringToPeluwareAdapters.toSort(s)` |
-| `SpringDataAdapters.toPeluwareOrders(s)` | `SpringToPeluwareAdapters.toOrders(s)` |
-| `SpringDataAdapters.toSpringSort(s)` | `PeluwareToSpringAdapters.toSort(s)` |
-| `SpringDataAdapters.toSpringPageable(p, s)` | `PeluwareToSpringAdapters.toPageable(p, s)` |
-| `SpringDataAdapters.withSpringPageable(p, fn)` | `PeluwareToSpringAdapters.apply(p, fn)` |
-| `SpringDataAdapters.page(provider, ...)` | `PeluwareToSpringAdapters.page(provider, ...)` |
+| Before                                         | After                                          |
+|------------------------------------------------|------------------------------------------------|
+| `SpringDataAdapters.toPeluwarePagination(p)`   | `SpringToPeluwareAdapters.toPagination(p)`     |
+| `SpringDataAdapters.toPeluwareSort(s)`         | `SpringToPeluwareAdapters.toSort(s)`           |
+| `SpringDataAdapters.toPeluwareOrders(s)`       | `SpringToPeluwareAdapters.toOrders(s)`         |
+| `SpringDataAdapters.toSpringSort(s)`           | `PeluwareToSpringAdapters.toSort(s)`           |
+| `SpringDataAdapters.toSpringPageable(p, s)`    | `PeluwareToSpringAdapters.toPageable(p, s)`    |
+| `SpringDataAdapters.withSpringPageable(p, fn)` | `PeluwareToSpringAdapters.apply(p, fn)`        |
+| `SpringDataAdapters.page(provider, ...)`       | `PeluwareToSpringAdapters.page(provider, ...)` |
 
 **Deleted Spring provider classes:**
 
-| Before | After |
-|---|---|
-| `extends SpringEntityCrudProvider<...>` | `extends EntityCrudProvider<...>` |
-| `extends SpringOwnedEntityCrudProvider<...>` | `extends OwnedEntityCrudProvider<...>` |
-| `implements SpringCrudProvider<...>` | `PeluwareToSpringAdapters.page(provider, ...)` in your controller |
-| `implements SpringOwnedCrudProvider<...>` | `PeluwareToSpringAdapters.page(provider, ownerId, ...)` in your controller |
+| Before                                       | After                                                                      |
+|----------------------------------------------|----------------------------------------------------------------------------|
+| `extends SpringEntityCrudProvider<...>`      | `extends EntityCrudProvider<...>`                                          |
+| `extends SpringOwnedEntityCrudProvider<...>` | `extends OwnedEntityCrudProvider<...>`                                     |
+| `implements SpringCrudProvider<...>`         | `PeluwareToSpringAdapters.page(provider, ...)` in your controller          |
+| `implements SpringOwnedCrudProvider<...>`    | `PeluwareToSpringAdapters.page(provider, ownerId, ...)` in your controller |
 
 ---
 

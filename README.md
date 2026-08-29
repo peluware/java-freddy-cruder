@@ -36,56 +36,68 @@ Freddy Cruder is a modular, framework-agnostic Java library that standardizes an
 Add the module you need to your `pom.xml`. Each module transitively includes its dependencies.
 
 **Core only** (framework-agnostic):
+
 ```xml
+
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>3.1.0</version>
+    <version>3.2.0</version>
 </dependency>
 ```
 
 **JPA support:**
+
 ```xml
+
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>3.1.0</version>
+    <version>3.2.0</version>
 </dependency>
 ```
 
 **Spring Data + REST controllers:**
+
 ```xml
+
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>3.1.0</version>
+    <version>3.2.0</version>
 </dependency>
 ```
 
 **Spring Data JPA with search fragment (includes the two above):**
+
 ```xml
+
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
-    <version>3.1.0</version>
+    <version>3.2.0</version>
 </dependency>
 ```
 
 **MongoDB support:**
+
 ```xml
+
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-mongodb</artifactId>
-    <version>3.1.0</version>
+    <version>3.2.0</version>
 </dependency>
 ```
 
 **Spring Data MongoDB with search fragment:**
+
 ```xml
+
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
-    <version>3.1.0</version>
+    <version>3.2.0</version>
 </dependency>
 ```
 
@@ -114,36 +126,58 @@ Each has an `Owned*` counterpart that adds an `OWNER_ID` scope parameter. Contro
 The abstract base class that implements `CrudProvider` and wires the full CRUD lifecycle. You subclass this and implement the mapping and persistence methods.
 
 **Mapping contracts (required):**
+
 ```java
 protected abstract void mapInput(INPUT input, ENTITY entity, boolean isNew);
+
 protected abstract OUTPUT mapOutput(ENTITY entity);
 ```
 
 **Persistence contracts (required):**
+
 ```java
 protected abstract ENTITY internalFind(ID id) throws NotFoundEntityException;
+
 protected abstract Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort);
+
 protected abstract long internalCount(String search, String query);
+
 protected abstract boolean internalExists(ID id);
+
 protected abstract ENTITY internalCreate(ENTITY entity);
+
 protected abstract ENTITY internalUpdate(ENTITY entity);
+
 protected abstract void internalDelete(ENTITY entity);
 ```
 
 **Extension hooks (optional overrides):**
+
 ```java
-protected void preProcess(CrudOperation operation) {}
-protected void postProcess(CrudOperation operation) {}
-protected String applyQueryPolicies(String query) { return query; }
-protected <T> T withTransaction(Supplier<T> function) { return function.get(); }
+protected void preProcess(CrudOperation operation) {
+}
+
+protected void postProcess(CrudOperation operation) {
+}
+
+protected String applyQueryPolicies(String query) {
+    return query;
+}
+
+protected <T> T withTransaction(Supplier<T> function) {
+    return function.get();
+}
+
 protected ENTITY newEntity() { /* reflection-based by default */ }
-protected void afterCreate(INPUT input, ENTITY created) {}
-protected void afterUpdate(INPUT input, ENTITY updated) {}
+
+protected void afterCreate(INPUT input, ENTITY created) {
+}
+
+protected void afterUpdate(INPUT input, ENTITY updated) {
+}
 ```
 
-`afterCreate`/`afterUpdate` run right after persistence, inside the same transaction, with the input
-DTO and the persisted entity (so its generated identifier is available). Use them to persist dependent
-entities that need the parent's identifier but have no direct relationship at the store level.
+`afterCreate`/`afterUpdate` run right after persistence, inside the same transaction, with the input DTO and the persisted entity (so its generated identifier is available). Use them to persist dependent entities that need the parent's identifier but have no direct relationship at the store level.
 
 ### `CrudOptions`
 
@@ -163,19 +197,27 @@ Lifecycle hooks that fire at each stage of a CRUD operation. All methods have a 
 ```java
 // Read
 void onFind(ENTITY entity)
+
 void onPage(Page<ENTITY> page)
+
 void onCount(long count)
+
 void onExists(boolean exists, ID id)
+
 void eachEntity(ENTITY entity)
 
 // Write — before
 void onBeforeCreate(INPUT input, ENTITY entity)
+
 void onBeforeUpdate(INPUT input, ENTITY entity)
+
 void onBeforeDelete(ENTITY entity)
 
 // Write — after
 void onAfterCreate(INPUT input, ENTITY entity)
+
 void onAfterUpdate(INPUT input, ENTITY entity)
+
 void onAfterDelete(ENTITY entity)
 ```
 
@@ -209,7 +251,8 @@ create(input)
 Extend `JpaRepository` and `JpaSearchRepository`. The search fragment is registered automatically via `spring.factories` — no extra configuration needed.
 
 ```java
-public interface ProductRepository extends JpaRepository<Product, Long>, JpaSearchRepository<Product> {}
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSearchRepository<Product> {
+}
 ```
 
 ### 2. Define your service
@@ -217,6 +260,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSear
 Extend `SpringRepositoryCrudProvider` and implement the two mapping methods. Pass your repository as a single argument — the intersection type constructor accepts any object that implements both `CrudRepository` and `SearchRepository`.
 
 ```java
+
 @Service
 public class ProductService extends SpringRepositoryCrudProvider<Product, Long, ProductInput, ProductOutput> {
 
@@ -242,6 +286,7 @@ public class ProductService extends SpringRepositoryCrudProvider<Product, Long, 
 Implement any combination of controller interfaces. Each one brings a default `@RequestMapping` method wired to your service.
 
 ```java
+
 @RestController
 @RequestMapping("/products")
 public class ProductController implements CrudController<Long, ProductInput, ProductOutput> {
@@ -278,11 +323,13 @@ Instead of `CrudController`, compose only the operations you need:
 ```java
 // Read-only resource
 public class ProductController implements PageController<ProductOutput>,
-                                          FindController<Long, ProductOutput> { ... }
+    FindController<Long, ProductOutput> { ...
+}
 
 // Write-only resource
 public class ProductController implements CreateController<ProductInput, ProductOutput>,
-                                          UpdateController<Long, ProductInput, ProductOutput> { ... }
+    UpdateController<Long, ProductInput, ProductOutput> { ...
+}
 ```
 
 ---
@@ -292,6 +339,7 @@ public class ProductController implements CreateController<ProductInput, Product
 Use `OwnedCrudProvider` for resources scoped to an owner. All endpoints receive an extra `@PathVariable OWNER_ID ownerId`:
 
 ```java
+
 @RestController
 @RequestMapping("/users/{ownerId}/orders")
 public class OrderController implements OwnedCrudController<Long, Long, OrderInput, OrderOutput> {
@@ -320,11 +368,8 @@ OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>                                  
 └── JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT>    (jpa — abstract)
 ```
 
-`JpaCrudProvider` and `FilterableJpaCrudProvider` are siblings, not parent/child — the latter simply adds
-a `predicateFilter` hook and query hints on top of the same `EntityCrudProvider` base (same for their
-Mongo counterparts). `JpaProjectedCrudProvider`/`JpaOwnedProjectedCrudProvider` implement `CrudProvider`/
-`OwnedCrudProvider` directly instead of extending the entity base, since their read path returns a
-projection rather than the entity.
+`JpaCrudProvider` and `FilterableJpaCrudProvider` are siblings, not parent/child — the latter simply adds a `predicateFilter` hook and query hints on top of the same `EntityCrudProvider` base (same for their Mongo counterparts). `JpaProjectedCrudProvider`/`JpaOwnedProjectedCrudProvider` implement `CrudProvider`/
+`OwnedCrudProvider` directly instead of extending the entity base, since their read path returns a projection rather than the entity.
 
 ---
 
