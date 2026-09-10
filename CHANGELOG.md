@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.2.1] — 2026-09-09
+
+### Changed
+
+#### `freddy-cruder-jpa`
+
+- `searchPredicate` is no longer `final` in `JpaCrudProvider`, `FilterableJpaCrudProvider`,
+  `FilterableOwnedJpaCrudProvider`, `JpaProjectedCrudProvider`, and `JpaOwnedProjectedCrudProvider`.
+  It was the only customization point left non-overridable while `predicateFilter`,
+  `buildIdPredicate`, `buildOwnerPredicate`, and `getQueryHints()` already were; this removes that
+  inconsistency.
+
+#### `freddy-cruder-spring-data-jpa`
+
+- `JpaSearchEngine`'s `searchPredicate` and `count` are now `protected` instead of `private`, so a
+  subclass can reuse them.
+
+This is purely a visibility relaxation — nothing was overridable before that now behaves differently
+by default; existing code is unaffected either way.
+
+---
+
 ## [3.2.0] — 2026-08-29
 
 ### Fixed

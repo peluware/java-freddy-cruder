@@ -130,7 +130,11 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
     protected ENTITY internalFind(ID id) throws NotFoundEntityException {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityFindQuery<>(entityClass, filtered(buildIdPredicate(id)), () -> new NotFoundEntityException(entityClass, id)).addHints(getQueryHints())
+            new EntityFindQuery<>(
+                entityClass,
+                filtered(buildIdPredicate(id)),
+                () -> new NotFoundEntityException(entityClass, id)
+            ).addHints(getQueryHints())
         );
     }
 
@@ -281,7 +285,7 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      * @param query  RSQL query expression, or {@code null}
      * @return the search predicate
      */
-    protected final JpaPredicate<ENTITY> searchPredicate(@Nullable String search, @Nullable String query) {
+    protected JpaPredicate<ENTITY> searchPredicate(@Nullable String search, @Nullable String query) {
         return searchPredicateBuilder.bind(entityManager.getMetamodel(), search, query);
     }
 

@@ -237,7 +237,7 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      * @param query  RSQL query expression, or {@code null}
      * @return the search predicate
      */
-    protected final JpaPredicate<ENTITY> searchPredicate(@Nullable String search, @Nullable String query) {
+    protected JpaPredicate<ENTITY> searchPredicate(@Nullable String search, @Nullable String query) {
         return searchPredicateBuilder.bind(entityManager.getMetamodel(), search, query);
     }
 }

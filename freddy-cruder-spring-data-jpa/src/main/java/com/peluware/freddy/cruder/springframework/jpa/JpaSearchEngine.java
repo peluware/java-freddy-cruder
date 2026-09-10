@@ -103,7 +103,7 @@ public class JpaSearchEngine implements SearchEngine {
      * @param search     normalized full-text search string, or {@code null}
      * @param query      RSQL query expression, or {@code null}
      * @param pageable   the pagination and sort specification
-     * @param selection builds the {@code SELECT} clause from the root and criteria builder
+     * @param selection  builds the {@code SELECT} clause from the root and criteria builder
      * @param <T>        the entity type
      * @param <R>        the projected result type
      * @return a page of projected results
@@ -148,7 +148,7 @@ public class JpaSearchEngine implements SearchEngine {
      * @param query      RSQL query expression, or {@code null}
      * @param pageable   the pagination and sort specification
      * @param filter     an additional predicate combined with the search via {@code AND}
-     * @param selection builds the {@code SELECT} clause from the root and criteria builder
+     * @param selection  builds the {@code SELECT} clause from the root and criteria builder
      * @param <T>        the entity type
      * @param <R>        the projected result type
      * @return a page of projected results
@@ -189,14 +189,14 @@ public class JpaSearchEngine implements SearchEngine {
         return count(entityType, this.searchPredicate(search, query));
     }
 
-    private <T> JpaPredicate<T> searchPredicate(
+    protected <T> JpaPredicate<T> searchPredicate(
         @Nullable String search,
         @Nullable String query
     ) {
         return searchPredicateBuilder.bind(entityManager.getMetamodel(), search, query);
     }
 
-    private <T> long count(Class<T> entityType, JpaPredicate<T> predicate) {
+    protected <T> long count(Class<T> entityType, JpaPredicate<T> predicate) {
         return JpaQueryExecutor.exec(
             entityManager,
             new EntityCountQuery<>(entityType, predicate)
