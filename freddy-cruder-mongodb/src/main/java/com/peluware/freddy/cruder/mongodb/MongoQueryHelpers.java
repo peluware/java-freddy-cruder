@@ -21,6 +21,13 @@ public final class MongoQueryHelpers {
     }
 
     /**
+     * Executes a find with optional sort, without pagination.
+     */
+    public static <T> List<T> find(MongoCollection<T> collection, Bson filter, Sort sort) {
+        return find(collection, filter, Pagination.unpaginated(), sort);
+    }
+
+    /**
      * Executes a find with optional pagination and sort.
      */
     public static <T> List<T> find(MongoCollection<T> collection, Bson filter, Pagination pagination, Sort sort) {

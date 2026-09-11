@@ -8,10 +8,13 @@ import org.bson.conversions.Bson;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.BasicQuery;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.support.PageableExecutionUtils;
+
+import java.util.List;
 
 /**
  * {@link SearchEngine} backed by Spring Data MongoDB's {@link MongoOperations}.
@@ -46,6 +49,15 @@ public class MongoSearchEngine implements SearchEngine {
         );
     }
 
+
+    @Override
+    public <T> List<T> findAllBySearch(Class<T> entityType, @Nullable String search, @Nullable String query, Sort sort) {
+        var baseQuery = getFilterQuery(entityType, search, query);
+        if (sort.isSorted()) {
+            baseQuery = baseQuery.with(sort);
+        }
+        return mongoOperations.find(baseQuery, entityType);
+    }
 
     @Override
     public <T> long countBySearch(Class<T> entityType, @Nullable String search, @Nullable String query) {

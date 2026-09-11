@@ -15,6 +15,7 @@ import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
 import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -158,6 +159,21 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
             pagination,
             sort,
             () -> internalCount(search, query)
+        );
+    }
+
+    /**
+     * Retrieves every entity matching the given search and query filters.
+     */
+    @Override
+    protected List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort) {
+        return JpaQueryExecutor.exec(
+            entityManager,
+            new EntityListQuery<>(
+                entityClass,
+                filtered(searchPredicate(search, query)),
+                sort
+            ).addHints(getQueryHints())
         );
     }
 

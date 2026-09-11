@@ -13,7 +13,10 @@ import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.support.PageableExecutionUtils;
+
+import java.util.List;
 
 /**
  * {@link SearchEngine} backed by JPA Criteria API.
@@ -47,6 +50,18 @@ public class JpaSearchEngine implements SearchEngine {
             content,
             pageable,
             () -> count(entityType, predicate)
+        );
+    }
+
+    @Override
+    public <T> List<T> findAllBySearch(Class<T> entityType, @Nullable String search, @Nullable String query, Sort sort) {
+        return JpaQueryExecutor.exec(
+            entityManager,
+            new EntityListQuery<>(
+                entityType,
+                this.searchPredicate(search, query),
+                Pageable.unpaged(sort)
+            )
         );
     }
 

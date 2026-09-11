@@ -8,6 +8,7 @@ import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.freddy.cruder.NotFoundException;
 import com.peluware.freddy.cruder.OwnedCrudProvider;
 import com.peluware.freddy.cruder.OwnedId;
+import com.peluware.freddy.cruder.OwnedListProvider;
 import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
@@ -27,13 +28,14 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
 /**
  * Owned-resource counterpart of {@link JpaProjectedCrudProvider}: a {@link OwnedCrudProvider} scoped
  * to an owner via {@link #buildOwnerPredicate}, that reads through a two-stage pipeline —
- * {@code page}/{@code find} select {@code PROJECTION} through {@link #selection()}, then
+ * {@code page}/{@code find}/{@code list} select {@code PROJECTION} through {@link #selection()}, then
  * {@link #mapOutput(Object, Object)} turns each row into {@code OUTPUT} — while {@code count}/
  * {@code exists} operate on the entity source directly, and writes operate on the real, managed
  * {@code ENTITY}. Same trade-off as the non-owned version — after a write, the response is built by
@@ -51,7 +53,7 @@ import java.util.function.Supplier;
  * @param <INPUT>      the input DTO type for create/update operations
  * @param <OUTPUT>     the output type returned to the consumer
  */
-public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT> implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
+public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT> implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>, OwnedListProvider<OWNER_ID, OUTPUT> {
 
     protected final EntityManager entityManager;
     protected final SearchPredicateBuilder searchPredicateBuilder;
@@ -170,6 +172,23 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
         );
         var mapped = content.stream().map(projection -> mapOutput(ownerId, projection)).toList();
         return Page.deferred(mapped, pagination, sort, () -> count(ownerId, search, query));
+    }
+
+    @Override
+    public List<OUTPUT> list(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
+        var content = JpaQueryExecutor.exec(
+            entityManager,
+            new ListQuery<>(
+                projectionClass,
+                JpaSource.root(entityClass),
+                selection(),
+                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+                groupBy(),
+                sort,
+                Pagination.unpaginated()
+            ).addHints(getQueryHints())
+        );
+        return content.stream().map(projection -> mapOutput(ownerId, projection)).toList();
     }
 
     @Override

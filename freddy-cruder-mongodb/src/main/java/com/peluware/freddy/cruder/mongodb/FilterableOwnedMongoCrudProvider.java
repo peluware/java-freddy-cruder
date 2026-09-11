@@ -94,6 +94,13 @@ public abstract class FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INP
     }
 
     /**
+     * Executes a find against the collection, routing {@code filter} through {@link #filterFilter} first.
+     */
+    protected final List<ENTITY> runList(Bson filter, Sort sort) {
+        return MongoQueryHelpers.find(collection(), filterFilter(filter), sort);
+    }
+
+    /**
      * Counts documents matching {@code filter}, routing it through {@link #filterFilter} first.
      */
     protected final long runCount(Bson filter) {
@@ -151,6 +158,11 @@ public abstract class FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INP
         var filter = Filters.and(buildOwnerFilter(ownerId), buildSearchFilter(search, query));
         var content = runFind(filter, pagination, sort);
         return Page.deferred(content, pagination, sort, () -> internalCount(ownerId, search, query));
+    }
+
+    @Override
+    protected List<ENTITY> internalList(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
+        return runList(Filters.and(buildOwnerFilter(ownerId), buildSearchFilter(search, query)), sort);
     }
 
     @Override

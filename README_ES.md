@@ -42,7 +42,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>3.2.1</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 
@@ -53,7 +53,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>3.2.1</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 
@@ -64,7 +64,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>3.2.1</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 
@@ -75,7 +75,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
-    <version>3.2.1</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 
@@ -86,7 +86,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-mongodb</artifactId>
-    <version>3.2.1</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 
@@ -97,7 +97,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
-    <version>3.2.1</version>
+    <version>4.0.0</version>
 </dependency>
 ```
 
@@ -140,6 +140,8 @@ protected abstract ENTITY internalFind(ID id) throws NotFoundEntityException;
 
 protected abstract Page<ENTITY> internalPage(String search, String query, Pagination pagination, Sort sort);
 
+protected abstract List<ENTITY> internalList(String search, String query, Sort sort);
+
 protected abstract long internalCount(String search, String query);
 
 protected abstract boolean internalExists(ID id);
@@ -150,6 +152,14 @@ protected abstract ENTITY internalUpdate(ENTITY entity);
 
 protected abstract void internalDelete(ENTITY entity);
 ```
+
+`EntityCrudProvider` también implementa `ListProvider<OUTPUT>` (`list(search, query, sort)`, sin
+paginación), siguiendo el mismo camino que `page` — misma proyección, mismo mapeo y mismos eventos de
+ciclo de vida. Deliberadamente **no** está compuesto en `ReadProvider` ni expuesto por ningún
+controller: poder paginar no implica que listar todo un recurso sea sensato, y una lectura sin
+paginar es para consumidores de proceso (exports, reportes, procesos masivos), no para endpoints
+HTTP. `OwnedEntityCrudProvider` implementa la contraparte con dueño, `OwnedListProvider<OWNER_ID, OUTPUT>`,
+de la misma forma.
 
 **Hooks de extensión (overrides opcionales):**
 

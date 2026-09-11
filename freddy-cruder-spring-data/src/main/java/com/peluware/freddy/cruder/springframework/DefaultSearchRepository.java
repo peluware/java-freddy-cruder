@@ -3,8 +3,11 @@ package com.peluware.freddy.cruder.springframework;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.repository.core.RepositoryMethodContext;
 import org.springframework.data.repository.core.support.RepositoryMetadataAccess;
+
+import java.util.List;
 
 /**
  * Base fragment implementation of {@link SearchRepository} that delegates to a {@link SearchEngine}.
@@ -25,6 +28,13 @@ public class DefaultSearchRepository<T> implements SearchRepository<T>, Reposito
         @SuppressWarnings("unchecked")
         Class<T> domainType = (Class<T>) RepositoryMethodContext.getContext().getMetadata().getDomainType();
         return engine.findAllBySearch(domainType, search, query, pageable);
+    }
+
+    @Override
+    public List<T> findAllBySearch(@Nullable String search, @Nullable String query, Sort sort) {
+        @SuppressWarnings("unchecked")
+        Class<T> domainType = (Class<T>) RepositoryMethodContext.getContext().getMetadata().getDomainType();
+        return engine.findAllBySearch(domainType, search, query, sort);
     }
 
     @Override

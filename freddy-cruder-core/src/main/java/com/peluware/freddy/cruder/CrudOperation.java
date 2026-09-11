@@ -31,6 +31,13 @@ public enum CrudOperation {
     PAGE(false, true),
 
     /**
+     * Represents an unpaginated read operation.
+     * <br>
+     * This operation involves retrieving every entity matching the given criteria.
+     */
+    LIST(false, true),
+
+    /**
      * Represents a find operation (read only).
      * <br>
      * This operation involves retrieving a specific entity by its ID.

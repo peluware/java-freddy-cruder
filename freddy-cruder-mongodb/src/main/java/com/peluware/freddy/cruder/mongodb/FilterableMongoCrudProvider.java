@@ -92,6 +92,13 @@ public abstract class FilterableMongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> ext
     }
 
     /**
+     * Executes a find against the collection, routing {@code filter} through {@link #filterFilter} first.
+     */
+    protected final List<ENTITY> runList(Bson filter, Sort sort) {
+        return MongoQueryHelpers.find(collection(), filterFilter(filter), sort);
+    }
+
+    /**
      * Counts documents matching {@code filter}, routing it through {@link #filterFilter} first.
      */
     protected final long runCount(Bson filter) {
@@ -135,6 +142,11 @@ public abstract class FilterableMongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> ext
     protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var content = runFind(buildSearchFilter(search, query), pagination, sort);
         return Page.deferred(content, pagination, sort, () -> internalCount(search, query));
+    }
+
+    @Override
+    protected List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort) {
+        return runList(buildSearchFilter(search, query), sort);
     }
 
     @Override

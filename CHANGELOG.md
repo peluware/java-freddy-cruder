@@ -6,6 +6,86 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [4.0.0] — 2026-09-10
+
+Adds an unpaginated listing operation alongside `page`, for process-internal consumers — exports,
+reports, batch jobs — that today build a `Page` just to discard it via `Pagination.unpaginated()`.
+
+### Why 4.0.0
+
+`EntityCrudProvider` and `OwnedEntityCrudProvider` gain a new required `internalList` persistence
+contract, the same way `internalPage` already is. Any class extending either of them
+directly — outside the JPA, MongoDB, and Spring Data modules, which already implement it — needs to
+add that method to keep compiling.
+
+### Added
+
+#### `freddy-cruder-core`
+
+- `ListProvider<OUTPUT>` and `OwnedListProvider<OWNER_ID, OUTPUT>` — unpaginated counterparts of
+  `PageProvider`/`OwnedPageProvider`. Deliberately **not** composed into `ReadProvider`/
+  `OwnedReadProvider`, and not exposed by any controller: pagination support doesn't imply listing an
+  entire resource is sensible.
+- `EntityCrudProvider`/`OwnedEntityCrudProvider` implement `ListProvider`/`OwnedListProvider`,
+  following the same path as `page` — same projection, mapping, and lifecycle events.
+- `CrudOperation.LIST`.
+
+#### `freddy-cruder-jpa`
+
+- `internalList` in `JpaCrudProvider`, `FilterableJpaCrudProvider`, and
+  `FilterableOwnedJpaCrudProvider`, reusing the existing unpaginated `EntityListQuery` constructor.
+- `JpaProjectedCrudProvider`/`JpaOwnedProjectedCrudProvider` implement `ListProvider`/
+  `OwnedListProvider` directly — no new abstract method needed, since `list` reuses the same
+  `selection()`/`groupBy()`/`searchPredicate()` hooks `page` already does.
+
+#### `freddy-cruder-mongodb`
+
+- `internalList` in `MongoCrudProvider`, `FilterableMongoCrudProvider`, and
+  `FilterableOwnedMongoCrudProvider`.
+- `MongoQueryHelpers.find(MongoCollection, Bson, Sort)` — unpaginated overload.
+
+#### `freddy-cruder-spring-data`
+
+- `SearchEngine`/`SearchRepository` gain a native, unpaginated `findAllBySearch(..., Sort)` returning
+  `List<T>` directly — no `Pageable`/`Page` involved. A custom `SearchEngine` implementation must add
+  it too. `internalList` in `SpringRepositoryCrudProvider` calls it directly.
+
+#### `freddy-cruder-spring-data-jpa`
+
+- `JpaSearchEngine.findAllBySearch(..., Sort)` implements the native overload by reusing
+  `EntityListQuery` with `Pageable.unpaged(sort)` — an internal detail; the fragment method itself
+  takes and returns no `Pageable`/`Page`.
+
+#### `freddy-cruder-spring-data-mongodb`
+
+- `MongoSearchEngine.findAllBySearch(..., Sort)` implements the native overload via `Query.with(Sort)`
+  — no `Pageable` at all, not even internally.
+
+### Fixed
+
+#### `freddy-cruder-spring-data`
+
+- `PeluwareToSpringAdapters.toPageable` silently dropped the requested `Sort` whenever `Pagination`
+  was unpaginated, since it returned `Pageable.unpaged()` instead of `Pageable.unpaged(sort)`. Any
+  call to `page(search, query, Pagination.unpaginated(), sort)` on a `SpringRepositoryCrudProvider`
+  — the exact pattern this release's `list()` replaces — returned results in an unspecified order,
+  ignoring `sort` entirely.
+
+### Migration
+
+If you extend `EntityCrudProvider` or `OwnedEntityCrudProvider` directly (not through
+`FilterableJpaCrudProvider`, `MongoCrudProvider`, or `SpringRepositoryCrudProvider`), implement the
+new `internalList` method:
+
+```java
+// EntityCrudProvider
+protected List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort) {
+    // return every entity matching search/query, sorted
+}
+```
+
+---
+
 ## [3.2.1] — 2026-09-09
 
 ### Changed

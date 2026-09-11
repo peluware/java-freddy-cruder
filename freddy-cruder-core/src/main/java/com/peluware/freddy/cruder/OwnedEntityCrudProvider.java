@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.peluware.freddy.cruder.utils.ReflectUtils;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -46,7 +47,7 @@ import java.util.function.Supplier;
  * @param <INPUT>    the input DTO type used for create/update operations
  * @param <OUTPUT>   the output representation (DTO, projection, view model, etc.)
  */
-public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT> implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT> {
+public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT> implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>, OwnedListProvider<OWNER_ID, OUTPUT> {
 
     protected final Class<ENTITY> entityClass;
     protected final EntityCrudEvents<ENTITY, ID, INPUT> events;
@@ -128,6 +129,27 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
 
         postProcess(CrudOperation.PAGE);
         return page.map(entity -> mapOutput(ownerId, entity));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * Normalizes the search input, retrieves every matching entity within the owner's scope,
+     * triggers lifecycle events, and maps entity results to output DTOs.
+     * </p>
+     */
+    @Override
+    public List<OUTPUT> list(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
+        preProcess(CrudOperation.LIST);
+
+        var normalized = StringUtils.normalize(search);
+        var content = resolveList(ownerId, normalized, query, sort);
+
+        content.forEach(events::eachEntity);
+
+        postProcess(CrudOperation.LIST);
+        return content.stream().map(entity -> mapOutput(ownerId, entity)).toList();
     }
 
     /**
@@ -353,6 +375,17 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
     protected abstract Page<ENTITY> internalPage(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort);
 
     /**
+     * Retrieves every entity belonging to the given owner.
+     *
+     * @param ownerId the identifier of the owning resource
+     * @param search  normalized search string
+     * @param query   processed query expression
+     * @param sort    sorting configuration
+     * @return every matching entity
+     */
+    protected abstract List<ENTITY> internalList(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort);
+
+    /**
      * Counts entities belonging to the given owner matching optional filters.
      *
      * @param ownerId the identifier of the owning resource
@@ -516,6 +549,11 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
     private Page<ENTITY> resolvePage(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var newQuery = applyQueryPolicies(ownerId, query);
         return internalPage(ownerId, search, newQuery, pagination, sort);
+    }
+
+    private List<ENTITY> resolveList(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
+        var newQuery = applyQueryPolicies(ownerId, query);
+        return internalList(ownerId, search, newQuery, sort);
     }
 
     private long resolveCount(OWNER_ID ownerId, @Nullable String search, @Nullable String query) {

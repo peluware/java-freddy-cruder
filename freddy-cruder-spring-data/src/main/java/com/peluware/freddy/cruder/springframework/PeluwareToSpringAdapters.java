@@ -29,7 +29,7 @@ public final class PeluwareToSpringAdapters {
 
     public static Pageable toPageable(com.peluware.domain.Pagination pagination, com.peluware.domain.Sort sort) {
         if (!pagination.isPaginated()) {
-            return Pageable.unpaged();
+            return Pageable.unpaged(toSort(sort));
         }
         return PageRequest.of(pagination.getNumber(), pagination.getSize(), toSort(sort));
     }

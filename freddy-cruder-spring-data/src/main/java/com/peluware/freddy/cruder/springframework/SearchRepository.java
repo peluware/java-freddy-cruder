@@ -3,6 +3,9 @@ package com.peluware.freddy.cruder.springframework;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
+import java.util.List;
 
 /**
  * Fragment interface that adds paginated search and count operations to a Spring Data repository.
@@ -17,6 +20,10 @@ public interface SearchRepository<T> {
 
     default Page<T> findAllBySearch(@Nullable String search, @Nullable String query, Pageable pageable) {
         throw new UnsupportedOperationException("findBySearch requires a store-specific fragment implementation");
+    }
+
+    default List<T> findAllBySearch(@Nullable String search, @Nullable String query, Sort sort) {
+        throw new UnsupportedOperationException("findAllBySearch requires a store-specific fragment implementation");
     }
 
     default long countBySearch(@Nullable String search, @Nullable String query) {

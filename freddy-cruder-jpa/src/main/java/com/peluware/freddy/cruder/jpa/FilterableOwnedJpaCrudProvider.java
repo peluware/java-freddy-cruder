@@ -19,6 +19,7 @@ import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Predicate;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -165,6 +166,22 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
             pagination,
             sort,
             () -> internalCount(ownerId, search, query)
+        );
+    }
+
+    /**
+     * Retrieves every entity belonging to the given owner, matching the given search and query
+     * filters.
+     */
+    @Override
+    protected List<ENTITY> internalList(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
+        return JpaQueryExecutor.exec(
+            entityManager,
+            new EntityListQuery<>(
+                entityClass,
+                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+                sort
+            ).addHints(getQueryHints())
         );
     }
 

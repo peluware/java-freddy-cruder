@@ -9,6 +9,8 @@ import com.peluware.freddy.cruder.NotFoundEntityException;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.repository.CrudRepository;
 
+import java.util.List;
+
 /**
  * Spring Data implementation of {@link EntityCrudProvider} that delegates persistence
  * to a {@link CrudRepository} and search/pagination to an {@link SearchRepository}.
@@ -149,6 +151,11 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
             query,
             pageable
         ));
+    }
+
+    @Override
+    protected List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort) {
+        return searchRepository.findAllBySearch(search, query, PeluwareToSpringAdapters.toSort(sort));
     }
 
     @Override

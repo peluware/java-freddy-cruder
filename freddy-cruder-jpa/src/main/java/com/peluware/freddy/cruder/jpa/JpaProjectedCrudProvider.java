@@ -5,6 +5,7 @@ import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.CrudProvider;
 import com.peluware.freddy.cruder.EntityCrudEvents;
+import com.peluware.freddy.cruder.ListProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
@@ -22,15 +23,16 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * A {@link CrudProvider} that reads through a two-stage pipeline — {@code page}/{@code find} select
- * {@code PROJECTION} through {@link #selection()}, then {@link #mapOutput(Object)} turns each row
- * into {@code OUTPUT} — while {@code count}/{@code exists} operate on the entity source directly,
- * and writes ({@code create}/{@code update}/{@code delete}) operate on the real, managed
- * {@code ENTITY}, since the projection is only ever cheaper for reads.
+ * A {@link CrudProvider} that reads through a two-stage pipeline — {@code page}/{@code find}/
+ * {@code list} select {@code PROJECTION} through {@link #selection()}, then {@link #mapOutput(Object)}
+ * turns each row into {@code OUTPUT} — while {@code count}/{@code exists} operate on the entity
+ * source directly, and writes ({@code create}/{@code update}/{@code delete}) operate on the real,
+ * managed {@code ENTITY}, since the projection is only ever cheaper for reads.
  *
  * <p>{@code PROJECTION} is deliberately free to be anything selectable, not just a lean DTO:</p>
  * <ul>
@@ -56,7 +58,7 @@ import java.util.function.Supplier;
  * @param <INPUT>      the input DTO type for create/update operations
  * @param <OUTPUT>     the output type returned to the consumer
  */
-public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT> {
+public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT>, ListProvider<OUTPUT> {
 
     protected final EntityManager entityManager;
     protected final SearchPredicateBuilder searchPredicateBuilder;
@@ -175,6 +177,23 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
         );
         var mapped = content.stream().map(this::mapOutput).toList();
         return Page.deferred(mapped, pagination, sort, () -> count(search, query));
+    }
+
+    @Override
+    public List<OUTPUT> list(@Nullable String search, @Nullable String query, Sort sort) {
+        var content = JpaQueryExecutor.exec(
+            entityManager,
+            new ListQuery<>(
+                projectionClass,
+                JpaSource.root(entityClass),
+                selection(),
+                filtered(searchPredicate(search, query)),
+                groupBy(),
+                sort,
+                Pagination.unpaginated()
+            ).addHints(getQueryHints())
+        );
+        return content.stream().map(this::mapOutput).toList();
     }
 
     @Override

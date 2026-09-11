@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -45,7 +46,7 @@ import java.util.function.Supplier;
  * @param <INPUT>  the input DTO type used for create/update operations
  * @param <OUTPUT> the output representation (DTO, projection, view model, etc.)
  */
-public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT> {
+public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT>, ListProvider<OUTPUT> {
 
     protected final Class<ENTITY> entityClass;
     protected final EntityCrudEvents<ENTITY, ID, INPUT> events;
@@ -135,6 +136,27 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
 
         postProcess(CrudOperation.PAGE);
         return page.map(this::mapOutput);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * This implementation normalizes search input, retrieves every matching entity, triggers
+     * lifecycle events, and maps entity results to output DTOs.
+     * </p>
+     */
+    @Override
+    public List<OUTPUT> list(@Nullable String search, @Nullable String query, Sort sort) {
+        preProcess(CrudOperation.LIST);
+
+        var normalized = StringUtils.normalize(search);
+        var content = resolveList(normalized, query, sort);
+
+        content.forEach(events::eachEntity);
+
+        postProcess(CrudOperation.LIST);
+        return content.stream().map(this::mapOutput).toList();
     }
 
     /**
@@ -336,6 +358,8 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
 
     protected abstract Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort);
 
+    protected abstract List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort);
+
     protected abstract long internalCount(@Nullable String search, @Nullable String query);
 
     protected abstract boolean internalExists(ID id);
@@ -458,6 +482,11 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
     private Page<ENTITY> resolvePage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var newQuery = applyQueryPolicies(query);
         return internalPage(search, newQuery, pagination, sort);
+    }
+
+    private List<ENTITY> resolveList(@Nullable String search, @Nullable String query, Sort sort) {
+        var newQuery = applyQueryPolicies(query);
+        return internalList(search, newQuery, sort);
     }
 
     private long resolveCount(@Nullable String search, @Nullable String query) {

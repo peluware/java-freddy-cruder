@@ -13,6 +13,8 @@ import org.bson.codecs.pojo.annotations.BsonId;
 import org.bson.conversions.Bson;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 /**
  * MongoDB-specific implementation of {@link EntityCrudProvider} using the MongoDB sync driver.
  *
@@ -96,6 +98,11 @@ public abstract class MongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends Entit
     protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var content = MongoQueryHelpers.find(collection(), buildSearchFilter(search, query), pagination, sort);
         return Page.deferred(content, pagination, sort, () -> internalCount(search, query));
+    }
+
+    @Override
+    protected List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort) {
+        return MongoQueryHelpers.find(collection(), buildSearchFilter(search, query), sort);
     }
 
     @Override
