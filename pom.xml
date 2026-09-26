@@ -6,7 +6,7 @@
 
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
     <packaging>pom</packaging>
     <name>Freddy Cruder</name>
     <description>
@@ -39,9 +39,14 @@
 
     <modules>
         <module>freddy-cruder-core</module>
+        <module>freddy-cruder-bulk-import</module>
+        <module>freddy-cruder-bulk-import-excel</module>
+        <module>freddy-cruder-bulk-import-csv</module>
+        <module>freddy-cruder-memory</module>
         <module>freddy-cruder-jpa</module>
         <module>freddy-cruder-mongodb</module>
         <module>freddy-cruder-spring-data</module>
+        <module>freddy-cruder-spring-web-bulk-import</module>
         <module>freddy-cruder-spring-data-jpa</module>
         <module>freddy-cruder-spring-data-mongodb</module>
     </modules>
@@ -51,10 +56,17 @@
         <encoding.default>UTF-8</encoding.default>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <com.peluware.omnisearch.version>2.6.0</com.peluware.omnisearch.version>
+        <junit.version>6.1.3</junit.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
             <dependency>
                 <groupId>com.peluware</groupId>
                 <artifactId>freddy-cruder-commons</artifactId>
@@ -63,6 +75,26 @@
             <dependency>
                 <groupId>com.peluware</groupId>
                 <artifactId>freddy-cruder-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-bulk-import</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-bulk-import-excel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-bulk-import-csv</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-memory</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -78,6 +110,11 @@
             <dependency>
                 <groupId>com.peluware</groupId>
                 <artifactId>freddy-cruder-spring-data</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-spring-web-bulk-import</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -124,6 +161,11 @@
                         <arg>-parameters</arg>
                     </compilerArgs>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.6.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

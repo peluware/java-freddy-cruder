@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.peluware</groupId>
+        <artifactId>freddy-cruder</artifactId>
+        <version>4.1.0</version>
+    </parent>
+
+    <artifactId>freddy-cruder-bulk-import</artifactId>
+    <name>Freddy Cruder Bulk Import</name>
+    <description>Bulk import contract for Freddy Cruder: any source of records, converted to inputs and created through a CreateProvider.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.peluware</groupId>
+            <artifactId>freddy-cruder-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.peluware</groupId>
+            <artifactId>freddy-cruder-memory</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

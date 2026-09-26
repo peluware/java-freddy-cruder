@@ -6,6 +6,92 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ---
 
+## [4.1.0] — 2026-09-25
+
+Suma la carga masiva: cargar registros desde un archivo — Excel o CSV — a través de un
+`CreateProvider`, con una vista previa de lo que el archivo haría antes de hacerlo, una plantilla
+descargable y controllers REST que exponen las tres cosas. Nada de 4.0.0 cambia: la versión es
+aditiva, y lo único que se toca de un módulo existente son nuevos helpers de composición para
+`EntityCrudEvents`.
+
+### Añadido
+
+#### `freddy-cruder-bulk-import` (nuevo)
+
+- `BulkImportProvider<INPUT, PREVIEW, PREVIEW_META, OUTPUT>` y su contraparte con dueño
+  `OwnedBulkImportProvider` — el contrato de una carga: `execute(InputStream)`,
+  `preview(InputStream)` y `template()`. Agnóstico de la fuente: no sabe nada de Excel, CSV ni HTTP.
+  Los registros se crean a través de un `CreateProvider`, así que la validación, el mapeo y los eventos
+  de ciclo de vida corren igual que en un `create` individual.
+- `ImportConversion<INPUT>` — lo que una fuente dice de un registro: `converted(input)`,
+  `unconvertible(problems)` o `skipped(reason)`. `ImportConversion.attempt(Supplier)` convierte en
+  `unconvertible` una conversión que lanza una excepción. Un registro omitido no es un error: se
+  informa y la carga sigue.
+- `ImportBinder` — junta los problemas de un registro en vez de detenerse en el primero, para que el
+  usuario reciba todos los errores de una fila de una vez.
+- `BulkImportPreview` con `ImportRecordPreview` (`Created`, `Skipped`, `Rejected`), `BulkImportResult`
+  (`created`, `skipped`), `ImportProblem` (mensaje y campo opcional), `ImportTemplate` y
+  `BulkImportRecordException` (lleva la posición y los problemas del registro que falló).
+- Ganchos `created(output)` y `createFailed(position, failure)`, para reaccionar a cada registro creado
+  y para traducir los fallos de persistencia a algo que el usuario pueda corregir.
+
+#### `freddy-cruder-bulk-import-excel` (nuevo)
+
+- `ExcelBulkImportProvider` — carga el libro completo; lee `.xls` y `.xlsx` y evalúa fórmulas.
+- `StreamingExcelBulkImportProvider` — lee `.xlsx` fila a fila con `excel-streaming-reader`, una
+  dependencia **opcional** que agregas tú. Las fórmulas se leen como su valor guardado. La memoria se
+  mantiene plana sin importar el archivo: en nuestras mediciones el lector clásico necesita cerca de 150
+  veces el tamaño del archivo en heap, mientras que el de streaming corrió con 32 MB fijos.
+- Variantes con dueño: `OwnedExcelBulkImportProvider` y `OwnedStreamingExcelBulkImportProvider`.
+- `ExcelRow`, `ExcelCell` (`text`, `textOrNull`, `textAs`, `flag`, `integer`, `date`, `enumeration`, …),
+  `ExcelRowBinder`, `ExcelLayout` (fila de cabecera, primera fila de datos, primera columna) y
+  `ExcelMetadata` (las cabeceras, para la vista previa).
+- `ExcelSheetMissingException` cuando el archivo no tiene la hoja con el nombre esperado.
+
+#### `freddy-cruder-bulk-import-csv` (nuevo)
+
+- `CsvBulkImportProvider` y `OwnedCsvBulkImportProvider`, sobre Apache Commons CSV, con `charset()`,
+  `format()`, `header()` y `firstColumn()` para adaptarlos al archivo.
+- `CsvRow`, `CsvCell`, `CsvRowBinder` y `CsvMetadata`, espejo de los de Excel.
+
+#### `freddy-cruder-spring-web-bulk-import` (nuevo)
+
+- `BulkImportController<PREVIEW, PREVIEW_META>` y `OwnedBulkImportController` exponen un provider como
+  `POST /import`, `POST /import/preview` y `GET /import/template`, cada uno envuelto en `CrudContext`
+  con los `SpringCrudOptions` de la petición. La plantilla se escribe directo a la respuesta mediante un
+  `StreamingResponseBody`, sin almacenarla en memoria.
+- Los controllers declaran `getBulkImportService()` en lugar de `getService()`, para que un mismo
+  controller pueda implementar también `CrudController`.
+- Los errores no se mapean: `BulkImportRecordException` y, en Excel, `ExcelSheetMissingException` llegan
+  a tu manejador de excepciones, que decide cómo responder.
+- El módulo es solo Spring MVC — de ahí el `web` en su nombre — y vive aparte de
+  `freddy-cruder-spring-data`, donde REST es opcional, porque todo lo que contiene es un controller.
+
+#### `freddy-cruder-memory` (nuevo)
+
+- `MemoryCrudProvider` y `OwnedMemoryCrudProvider` — `EntityCrudProvider`s en memoria para pruebas y
+  prototipos. Crear, actualizar y eliminar corren en una transacción simulada que se revierte si falla.
+  `MemoryStore` y `MemoryIds` son el almacén y la estrategia de identificadores.
+
+#### `freddy-cruder-core`
+
+- `EntityCrudEvents.of(...)` (varargs o `Iterable`) y `andAll(Iterable)` componen varios manejadores de
+  eventos en uno, despachando en orden y deteniéndose en el primero que lance una excepción. Los
+  manejadores `DEFAULT` se descartan y las composiciones anidadas se aplanan.
+
+### Cambiado
+
+- Build: JUnit 6.1.3 y Maven Surefire 3.6.0 quedan gestionados en el `pom.xml` padre.
+
+### Migración
+
+No hay nada que migrar. Para usar la carga masiva, agrega el módulo de la fuente que necesites
+(`freddy-cruder-bulk-import-excel` o `freddy-cruder-bulk-import-csv`) y, para exponerla por REST,
+`freddy-cruder-spring-web-bulk-import`. Para leer `.xlsx` en streaming, agrega además
+`com.github.pjfanning:excel-streaming-reader`.
+
+---
+
 ## [4.0.0] — 2026-09-10
 
 Suma una operación de listado sin paginar junto a `page`, para consumidores de proceso — exports,

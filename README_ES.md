@@ -18,6 +18,13 @@ Freddy Cruder es una librería Java modular y agnóstica al framework que estand
           └──────┐              └──────┐              │
    freddy-cruder-spring-data-jpa   freddy-cruder-spring-data-mongodb
        (jpa + spring-data)            (mongodb + spring-data)
+
+                     freddy-cruder-bulk-import  (+ core)
+          ┌──────────────────┼──────────────────────┐
+ freddy-cruder-       freddy-cruder-       freddy-cruder-spring-web-bulk-import
+ bulk-import-excel    bulk-import-csv        (+ spring-data, expone por REST)
+
+                     freddy-cruder-memory  (+ core, para pruebas y prototipos)
 ```
 
 | Módulo                              | Descripción                                                                                                                                                                                                     |
@@ -28,6 +35,11 @@ Freddy Cruder es una librería Java modular y agnóstica al framework que estand
 | `freddy-cruder-spring-data`         | Integración con Spring Data: controllers REST, soporte para `CrudRepository` y `SpringCrudOptions`.                                                                                                             |
 | `freddy-cruder-spring-data-jpa`     | Fragmento JPA para `freddy-cruder-spring-data`. Autoconfigura `JpaSearchEngine` e integración opcional con omni-search. Úsalo cuando combines Spring Data JPA con el fragmento de búsqueda.                     |
 | `freddy-cruder-spring-data-mongodb` | Fragmento MongoDB para `freddy-cruder-spring-data`. Autoconfigura `MongoSearchEngine` e integración opcional con omni-search. Úsalo cuando combines Spring Data MongoDB con el fragmento de búsqueda.           |
+| `freddy-cruder-bulk-import`         | Contrato de carga masiva agnóstico de la fuente: los registros de un archivo se convierten en inputs y se crean a través de un `CreateProvider`, con vista previa y plantilla descargable.               |
+| `freddy-cruder-bulk-import-excel`   | Fuente Excel (Apache POI) para la carga masiva: lector clásico (`.xls`/`.xlsx`, fórmulas) y lector en streaming (`.xlsx`, memoria constante).                                                                    |
+| `freddy-cruder-bulk-import-csv`     | Fuente CSV (Apache Commons CSV) para la carga masiva.                                                                                                                                                            |
+| `freddy-cruder-spring-web-bulk-import` | Controllers Spring MVC que exponen un provider de carga masiva: `POST /import`, `POST /import/preview` y `GET /import/template`.                                                                              |
+| `freddy-cruder-memory`              | `EntityCrudProvider`s en memoria, pensados para pruebas y prototipos.                                                                                                                                            |
 
 ---
 
@@ -42,7 +54,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
 </dependency>
 ```
 
@@ -53,7 +65,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
 </dependency>
 ```
 
@@ -64,7 +76,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
 </dependency>
 ```
 
@@ -75,7 +87,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
 </dependency>
 ```
 
@@ -86,7 +98,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-mongodb</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
 </dependency>
 ```
 
@@ -97,9 +109,29 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
 </dependency>
 ```
+
+**Carga masiva** (elige la fuente que lees; agrega el módulo REST para exponerla):
+
+```xml
+
+<dependency>
+    <groupId>com.peluware</groupId>
+    <artifactId>freddy-cruder-bulk-import-excel</artifactId> <!-- o freddy-cruder-bulk-import-csv -->
+    <version>4.1.0</version>
+</dependency>
+<dependency>
+    <groupId>com.peluware</groupId>
+    <artifactId>freddy-cruder-spring-web-bulk-import</artifactId>
+    <version>4.1.0</version>
+</dependency>
+```
+
+El lector Excel en streaming necesita `com.github.pjfanning:excel-streaming-reader`, que es una
+dependencia opcional de `freddy-cruder-bulk-import-excel` — agrégala tú para usar
+`StreamingExcelBulkImportProvider`.
 
 ---
 
@@ -231,6 +263,8 @@ void onAfterUpdate(INPUT input, ENTITY entity)
 void onAfterDelete(ENTITY entity)
 ```
 
+Varios manejadores se componen en uno con `EntityCrudEvents.of(primero, segundo)` (o `primero.andAll(otros)`): se ejecutan en orden y se detienen en el primero que lance una excepción.
+
 ---
 
 ## Ciclo de vida de una operación
@@ -359,6 +393,99 @@ public class OrdenController implements OwnedCrudController<Long, Long, OrdenInp
 
 ---
 
+## Carga masiva
+
+Carga registros desde un archivo a través de un `CreateProvider`, así que la validación, el mapeo y los eventos de ciclo de vida corren igual que en un `create` individual. Un `BulkImportProvider` ofrece tres operaciones:
+
+| Operación           | Qué hace                                                                                                                 |
+|---------------------|--------------------------------------------------------------------------------------------------------------------------|
+| `execute(in)`       | Crea cada registro y devuelve un `BulkImportResult` (`created`, `skipped`). Se detiene en el primer registro que falla.  |
+| `preview(in)`       | Informa qué haría `execute`, registro por registro, sin crear nada — y todos los problemas de cada fila.                 |
+| `template()`        | Un `ImportTemplate`: el archivo que el usuario llena.                                                                    |
+
+Cada registro de una vista previa es `Created`, `Skipped` (con un motivo — no es un error, la carga sigue) o `Rejected` (con sus problemas). `execute` lanza `BulkImportRecordException`, con la posición y los problemas del registro que falló; ejecútalo dentro de una transacción para que un fallo no deje nada a medias.
+
+### Define una carga
+
+Extiende el provider de la fuente que lees y di cómo una fila se vuelve un input:
+
+```java
+
+@Service
+public class ProductoImport extends StreamingExcelBulkImportProvider<ProductoInput, ProductoOutput> {
+
+    public ProductoImport(ProductoService productos) {
+        super(productos);
+    }
+
+    @Override
+    protected String sheetName() {
+        return "Productos";
+    }
+
+    @Override
+    protected ImportConversion<ProductoInput> convert(ExcelRow row) {
+        var input = new ProductoInput();
+        var binder = new ExcelRowBinder(row);
+        binder.required(input::setNombre, 0, "Nombre", ExcelCell::textOrNull, "Falta el nombre.");
+        binder.required(input::setCategoria, 1, "Categoría", cell -> cell.enumeration(Categoria.class), "Falta la categoría.");
+        return binder.toConversion(input);   // todos los problemas de la fila a la vez
+    }
+
+    @Override
+    public ImportTemplate template() {
+        return new ImportTemplate("productos.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out -> { /* escribe el libro en out */ });
+    }
+}
+```
+
+`convert` también puede devolver `ImportConversion.skipped("Ya existe")` para dejar una fila fuera. Sobreescribe `created(output)` para reaccionar a cada registro creado y `createFailed(position, failure)` para convertir un fallo de persistencia en algo que el usuario pueda corregir.
+
+| Módulo de fuente                  | Providers                                                                                                                                                                                      |
+|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `freddy-cruder-bulk-import-excel` | `ExcelBulkImportProvider` (libro completo en memoria; `.xls`/`.xlsx`; evalúa fórmulas) y `StreamingExcelBulkImportProvider` (`.xlsx` fila a fila; las fórmulas se leen como su valor guardado). |
+| `freddy-cruder-bulk-import-csv`   | `CsvBulkImportProvider`, con `charset()`, `format()`, `header()` y `firstColumn()`.                                                                                                            |
+
+Prefiere el lector en streaming para cualquier archivo que pueda ser grande: el lector clásico necesita cerca de 150 veces el tamaño del archivo en heap, mientras que el de streaming se mantiene plano. Todos los providers tienen su contraparte `Owned*` que agrega un `OWNER_ID`.
+
+### Exponla por REST
+
+Implementa `BulkImportController` junto a tu controller CRUD:
+
+```java
+
+@RestController
+@RequestMapping("/productos")
+public class ProductoController implements CrudController<Long, ProductoInput, ProductoOutput>,
+    BulkImportController<List<String>, ExcelMetadata> {
+
+    private final ProductoService service;
+    private final ProductoImport bulkImport;
+
+    // constructor omitido
+
+    @Override
+    public CrudProvider<Long, ProductoInput, ProductoOutput> getService() {
+        return service;
+    }
+
+    @Override
+    public BulkImportProvider<?, List<String>, ExcelMetadata, ?> getBulkImportService() {
+        return bulkImport;
+    }
+}
+```
+
+| Método | Ruta                        | Descripción                                   |
+|--------|-----------------------------|-----------------------------------------------|
+| `POST` | `/productos/import`         | Importa el `file` subido                      |
+| `POST` | `/productos/import/preview` | Qué haría el archivo, sin hacerlo             |
+| `GET`  | `/productos/import/template`| La plantilla, en streaming hacia la respuesta |
+
+La librería no mapea los errores: `BulkImportRecordException` y `ExcelSheetMissingException` llegan a tu manejador de excepciones, que decide cómo responder.
+
+---
+
 ## Jerarquía de clases
 
 ```
@@ -366,6 +493,7 @@ CrudProvider<ID, INPUT, OUTPUT>                                             (cor
 ├── EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT>                          (core — abstracta)
 │   ├── JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>                         (jpa — abstracta)
 │   ├── FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT>               (jpa — abstracta)
+│   ├── MemoryCrudProvider<ENTITY, ID, INPUT, OUTPUT>                      (memory — abstracta)
 │   ├── MongoCrudProvider<ENTITY, ID, INPUT, OUTPUT>                       (mongodb — abstracta)
 │   ├── FilterableMongoCrudProvider<ENTITY, ID, INPUT, OUTPUT>             (mongodb — abstracta)
 │   └── SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT>            (spring-data — abstracta)
@@ -373,6 +501,7 @@ CrudProvider<ID, INPUT, OUTPUT>                                             (cor
 
 OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>                                        (core — interfaz)
 ├── OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>                      (core — abstracta)
+│   ├── OwnedMemoryCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>                  (memory — abstracta)
 │   ├── FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>           (jpa — abstracta)
 │   └── FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPUT>         (mongodb — abstracta)
 └── JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT>    (jpa — abstracta)
