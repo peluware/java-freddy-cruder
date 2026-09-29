@@ -24,7 +24,14 @@ Freddy Cruder is a modular, framework-agnostic Java library that standardizes an
  freddy-cruder-       freddy-cruder-       freddy-cruder-spring-web-bulk-import
  bulk-import-excel    bulk-import-csv        (+ spring-data, exposes over REST)
 
+                        freddy-cruder-export  (+ core)
+          ┌──────────────────┼──────────────────────┐
+ freddy-cruder-       freddy-cruder-         freddy-cruder-spring-web-export
+ export-csv           export-excel            (+ spring-data, exposes over REST)
+
                      freddy-cruder-memory  (+ core, for tests and prototypes)
+
+                     freddy-cruder-bom  (every module's version, managed)
 ```
 
 | Module                              | Description                                                                                                                                                                                                      |
@@ -39,7 +46,12 @@ Freddy Cruder is a modular, framework-agnostic Java library that standardizes an
 | `freddy-cruder-bulk-import-excel`   | Excel source (Apache POI) for bulk import: classic reader (`.xls`/`.xlsx`, formulas) and streaming reader (`.xlsx`, constant memory).                                                                            |
 | `freddy-cruder-bulk-import-csv`     | CSV source (Apache Commons CSV) for bulk import.                                                                                                                                                                 |
 | `freddy-cruder-spring-web-bulk-import` | Spring MVC controllers that expose a bulk import provider: `POST /import`, `POST /import/preview` and `GET /import/template`.                                                                                 |
+| `freddy-cruder-export`              | Source-agnostic export contract: turns a `ListProvider`/`StreamProvider` into a downloadable file, with a selectable subset of fields.                                                                          |
+| `freddy-cruder-export-csv`          | CSV writer (Apache Commons CSV) for export, list- and stream-backed.                                                                                                                                             |
+| `freddy-cruder-export-excel`        | Excel writer (Apache POI) for export: in-memory `XSSFWorkbook` (list-backed) or streaming `SXSSFWorkbook` that flushes rows to a temporary file (stream-backed).                                                |
+| `freddy-cruder-spring-web-export`   | Spring MVC controllers that expose an export provider: `GET /export`.                                                                                                                                           |
 | `freddy-cruder-memory`              | In-memory `EntityCrudProvider`s, meant for tests and prototypes.                                                                                                                                                 |
+| `freddy-cruder-bom`                 | POM-only artifact with the version-managed list of every module and the third-party dependencies they need. Import it instead of declaring each module's version by hand.                                       |
 
 ---
 
@@ -54,7 +66,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
 </dependency>
 ```
 
@@ -65,7 +77,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
 </dependency>
 ```
 
@@ -76,7 +88,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
 </dependency>
 ```
 
@@ -87,7 +99,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
 </dependency>
 ```
 
@@ -98,7 +110,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-mongodb</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
 </dependency>
 ```
 
@@ -109,7 +121,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
 </dependency>
 ```
 
@@ -120,17 +132,50 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-bulk-import-excel</artifactId> <!-- or freddy-cruder-bulk-import-csv -->
-    <version>4.1.0</version>
+    <version>4.2.0</version>
 </dependency>
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-web-bulk-import</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
 </dependency>
 ```
 
 The streaming Excel reader needs `com.github.pjfanning:excel-streaming-reader`, which is an optional
 dependency of `freddy-cruder-bulk-import-excel` — add it yourself to use `StreamingExcelBulkImportProvider`.
+
+**Export** (pick the format you write; add the REST module to expose it):
+
+```xml
+
+<dependency>
+    <groupId>com.peluware</groupId>
+    <artifactId>freddy-cruder-export-excel</artifactId> <!-- or freddy-cruder-export-csv -->
+    <version>4.2.0</version>
+</dependency>
+<dependency>
+    <groupId>com.peluware</groupId>
+    <artifactId>freddy-cruder-spring-web-export</artifactId>
+    <version>4.2.0</version>
+</dependency>
+```
+
+**BOM** (manage every module's version from one place, instead of repeating it per dependency):
+
+```xml
+
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.peluware</groupId>
+            <artifactId>freddy-cruder-bom</artifactId>
+            <version>4.2.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
 
 ---
 
@@ -184,12 +229,16 @@ protected abstract ENTITY internalUpdate(ENTITY entity);
 protected abstract void internalDelete(ENTITY entity);
 ```
 
-`EntityCrudProvider` also implements `ListProvider<OUTPUT>` (`list(search, query, sort)`, no pagination),
-following the same path as `page` — same projection, mapping, and lifecycle events. It is deliberately
-**not** composed into `ReadProvider` or exposed by any controller: pagination support doesn't imply
-listing an entire resource is sensible, and an unpaginated read belongs to process-internal consumers
-(exports, reports, batch jobs), not HTTP endpoints. `OwnedEntityCrudProvider` implements the
-owner-scoped counterpart, `OwnedListProvider<OWNER_ID, OUTPUT>`, the same way.
+`EntityCrudProvider` also implements `ListProvider<OUTPUT>` (`list(search, query, sort)`, no pagination)
+and `StreamProvider<OUTPUT>` (`stream(search, query, sort)`, a lazily-read `Stream` instead of a `List`),
+both following the same path as `page` — same projection, mapping, and lifecycle events. Neither is
+**deliberately** composed into `ReadProvider` or exposed by any controller: pagination support doesn't
+imply listing an entire resource is sensible, and an unpaginated read belongs to process-internal
+consumers (exports, reports, batch jobs), not HTTP endpoints. The default `stream` collects `list`'s
+result and streams that — correct but not lazy; a JPA or MongoDB provider overrides it to read through
+a live cursor instead, so nothing is loaded until the stream is consumed. `OwnedEntityCrudProvider`
+implements the owner-scoped counterparts, `OwnedListProvider<OWNER_ID, OUTPUT>` and
+`OwnedStreamProvider<OWNER_ID, OUTPUT>`, the same way.
 
 **Extension hooks (optional overrides):**
 
@@ -481,6 +530,92 @@ public class ProductController implements CrudController<Long, ProductInput, Pro
 | `GET`  | `/products/import/template`| The template, streamed to the response           |
 
 The library does not map errors: `BulkImportRecordException` and `ExcelSheetMissingException` reach your exception handler, which decides how to answer.
+
+---
+
+## Export
+
+Turn a `ListProvider`/`StreamProvider` into a downloadable file. An `ExportProvider` resolves a search,
+query, sort and field selection into an `Export` (`filename()`, `mediaType()`, `writeTo(OutputStream)`)
+upfront, without reading anything — the actual read happens whenever `writeTo` ends up being called.
+
+A field is a named, selectable piece of a record (`ExportField<OUTPUT>`: key, label, how to read it off
+a record), independent of the destination format. A request may ask for a subset by key; asking for one
+that doesn't exist throws `UnknownExportFieldsException`.
+
+### Define an export
+
+Extend the provider of the format you write, passing the `ListProvider`/`StreamProvider` it reads from
+and declaring the fields it offers:
+
+```java
+
+@Service
+public class ProductExport extends ExcelExportProvider<ProductOutput> {
+
+    public ProductExport(ProductService products) {
+        super(products);
+    }
+
+    @Override
+    protected String filename() {
+        return "products.xlsx";
+    }
+
+    @Override
+    protected List<ExportField<ProductOutput>> fields() {
+        return List.of(
+            new ExportField<>("name", "Name", ProductOutput::name),
+            new ExportField<>("price", "Price", ProductOutput::price)
+        );
+    }
+}
+```
+
+The default `writeWorkbook`/`writeRecords` writes a single sheet (or CSV) with a header row of field
+labels and one row per record — override it for a different sheet name, columns, styles or starting
+position; freddy-cruder only guarantees the result is written to the output afterward.
+
+| Provider base                        | Source                             | Notes                                                                 |
+|---------------------------------------|-------------------------------------|------------------------------------------------------------------------|
+| `CsvExportProvider`                   | `ListProvider` (`freddy-cruder-export-csv`)   | Apache Commons CSV, with `charset()` and `format()`.                  |
+| `StreamingCsvExportProvider`          | `StreamProvider` (`freddy-cruder-export-csv`) | Same, without holding every record in memory at once.                 |
+| `ExcelExportProvider`                 | `ListProvider` (`freddy-cruder-export-excel`) | `XSSFWorkbook`, built in memory.                                       |
+| `StreamingExcelExportProvider`        | `StreamProvider` (`freddy-cruder-export-excel`) | `SXSSFWorkbook`, flushing rows to a temporary file as they're written — prefer this for a large export. |
+
+Every provider has an `Owned*` counterpart that adds an `OWNER_ID`.
+
+### Expose it over REST
+
+Implement `ExportController` next to your CRUD controller:
+
+```java
+
+@RestController
+@RequestMapping("/products")
+public class ProductController implements CrudController<Long, ProductInput, ProductOutput>,
+    ExportController {
+
+    private final ProductService service;
+    private final ProductExport export;
+
+    // constructor omitted
+
+    @Override
+    public CrudProvider<Long, ProductInput, ProductOutput> getService() {
+        return service;
+    }
+
+    @Override
+    public ExportProvider getExportService() {
+        return export;
+    }
+}
+```
+
+| Method | Path              | Description                                                  |
+|--------|-------------------|----------------------------------------------------------------|
+| `GET`  | `/products/export`| Downloads the file, honoring `search`, `query`, `sort` and `fields` |
 
 ---
 
