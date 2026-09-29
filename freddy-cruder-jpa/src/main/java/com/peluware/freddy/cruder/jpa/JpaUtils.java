@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 public class JpaUtils {
 
@@ -209,6 +210,48 @@ public class JpaUtils {
         } catch (IllegalStateException e) {
             // JTA-managed EntityManager — transaction boundary is the container's responsibility
             return function.get();
+        }
+    }
+
+    /**
+     * Same guarantee as {@link #requireTransaction(EntityManager, Supplier)}, but for a lazily
+     * consumed {@link Stream}: if this method opens the transaction, it is not committed when
+     * {@code supplier} returns — the stream is still unread at that point — but when the
+     * returned stream is closed, via {@link Stream#onClose(Runnable)}.
+     *
+     * <p>Callers must consume and close the returned stream (e.g. try-with-resources) before
+     * the entity manager itself is closed.</p>
+     */
+    public static <T> Stream<T> requireTransactionStream(EntityManager em, Supplier<Stream<T>> supplier) {
+        if (em.isJoinedToTransaction()) {
+            return supplier.get();
+        }
+
+        EntityTransaction transaction;
+        try {
+            transaction = em.getTransaction();
+        } catch (IllegalStateException e) {
+            // JTA-managed EntityManager — transaction boundary is the container's responsibility
+            return supplier.get();
+        }
+
+        boolean weStartedIt = !transaction.isActive();
+        if (!weStartedIt) {
+            return supplier.get();
+        }
+
+        transaction.begin();
+        try {
+            return supplier.get().onClose(() -> {
+                if (transaction.isActive()) {
+                    transaction.commit();
+                }
+            });
+        } catch (RuntimeException e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
+            throw e;
         }
     }
 

@@ -9,13 +9,17 @@ import com.peluware.freddy.cruder.NotFoundException;
 import com.peluware.freddy.cruder.OwnedCrudProvider;
 import com.peluware.freddy.cruder.OwnedId;
 import com.peluware.freddy.cruder.OwnedListProvider;
+import com.peluware.freddy.cruder.OwnedStreamProvider;
 import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
 import com.peluware.freddy.cruder.jpa.query.FindQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaCriteria;
 import com.peluware.freddy.cruder.jpa.query.JpaGroupBy;
+import com.peluware.freddy.cruder.jpa.query.JpaOrder;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
+import com.peluware.freddy.cruder.jpa.query.JpaResult;
 import com.peluware.freddy.cruder.jpa.query.JpaSelection;
 import com.peluware.freddy.cruder.jpa.query.JpaSource;
 import com.peluware.freddy.cruder.jpa.query.ListQuery;
@@ -31,6 +35,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * Owned-resource counterpart of {@link JpaProjectedCrudProvider}: a {@link OwnedCrudProvider} scoped
@@ -53,7 +58,7 @@ import java.util.function.Supplier;
  * @param <INPUT>      the input DTO type for create/update operations
  * @param <OUTPUT>     the output type returned to the consumer
  */
-public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT> implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>, OwnedListProvider<OWNER_ID, OUTPUT> {
+public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, INPUT, OUTPUT> implements OwnedCrudProvider<OWNER_ID, ID, INPUT, OUTPUT>, OwnedListProvider<OWNER_ID, OUTPUT>, OwnedStreamProvider<OWNER_ID, OUTPUT> {
 
     protected final EntityManager entityManager;
     protected final SearchPredicateBuilder searchPredicateBuilder;
@@ -189,6 +194,26 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
             ).addHints(getQueryHints())
         );
         return content.stream().map(projection -> mapOutput(ownerId, projection)).toList();
+    }
+
+    /**
+     * Every matching row belonging to the given owner, lazily, through a live JPA cursor
+     * ({@link jakarta.persistence.TypedQuery#getResultStream()}) — same selection, filter and
+     * grouping as {@link #list}, just not collected; nothing is loaded until the returned stream
+     * is consumed.
+     */
+    @Override
+    public Stream<OUTPUT> stream(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
+        return JpaUtils.requireTransactionStream(entityManager, () -> JpaQueryExecutor.exec(
+            entityManager,
+            JpaCriteria.of(projectionClass),
+            JpaSource.root(entityClass),
+            selection(),
+            filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+            groupBy(),
+            JpaOrder.by(sort),
+            JpaResult.<PROJECTION>stream().addHints(getQueryHints())
+        )).map(projection -> mapOutput(ownerId, projection));
     }
 
     @Override

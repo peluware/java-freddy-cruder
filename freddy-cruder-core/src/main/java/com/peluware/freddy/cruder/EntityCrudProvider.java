@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * A high-level, framework-agnostic CRUD provider that encapsulates the full lifecycle of
@@ -46,7 +47,7 @@ import java.util.function.Supplier;
  * @param <INPUT>  the input DTO type used for create/update operations
  * @param <OUTPUT> the output representation (DTO, projection, view model, etc.)
  */
-public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT>, ListProvider<OUTPUT> {
+public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT>, ListProvider<OUTPUT>, StreamProvider<OUTPUT> {
 
     protected final Class<ENTITY> entityClass;
     protected final EntityCrudEvents<ENTITY, ID, INPUT> events;
@@ -157,6 +158,27 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
 
         postProcess(CrudOperation.LIST);
         return content.stream().map(this::mapOutput).toList();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>
+     * This implementation normalizes search input and delegates to {@link #internalStream},
+     * firing lifecycle events and mapping each entity to its output DTO lazily, as the returned
+     * stream is consumed. {@link #postProcess} runs when the returned stream is closed, not when
+     * this method returns — close it before whatever transaction guards this call ends.
+     * </p>
+     */
+    @Override
+    public Stream<OUTPUT> stream(@Nullable String search, @Nullable String query, Sort sort) {
+        preProcess(CrudOperation.STREAM);
+
+        var normalized = StringUtils.normalize(search);
+        return resolveStream(normalized, query, sort)
+            .onClose(() -> postProcess(CrudOperation.STREAM))
+            .peek(events::eachEntity)
+            .map(this::mapOutput);
     }
 
     /**
@@ -360,6 +382,23 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
 
     protected abstract List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort);
 
+    /**
+     * Every matching entity, lazily.
+     *
+     * <p>The default implementation delegates to {@link #internalList} and streams its result —
+     * correct, but not lazy: everything is loaded before the first element is handed out. Override
+     * it for a store that can read entities one at a time (a JPA cursor, a Mongo cursor) without
+     * collecting them into a {@link List} first.</p>
+     *
+     * @param search normalized search string
+     * @param query  processed query expression
+     * @param sort   sorting configuration
+     * @return every matching entity, lazily
+     */
+    protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
+        return internalList(search, query, sort).stream();
+    }
+
     protected abstract long internalCount(@Nullable String search, @Nullable String query);
 
     protected abstract boolean internalExists(ID id);
@@ -487,6 +526,11 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
     private List<ENTITY> resolveList(@Nullable String search, @Nullable String query, Sort sort) {
         var newQuery = applyQueryPolicies(query);
         return internalList(search, newQuery, sort);
+    }
+
+    private Stream<ENTITY> resolveStream(@Nullable String search, @Nullable String query, Sort sort) {
+        var newQuery = applyQueryPolicies(query);
+        return internalStream(search, newQuery, sort);
     }
 
     private long resolveCount(@Nullable String search, @Nullable String query) {

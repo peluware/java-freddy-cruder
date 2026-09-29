@@ -15,6 +15,7 @@ import org.bson.conversions.Bson;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * MongoDB-specific implementation of {@link OwnedEntityCrudProvider} that scopes
@@ -101,6 +102,13 @@ public abstract class FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INP
     }
 
     /**
+     * Streams a find against the collection, routing {@code filter} through {@link #filterFilter} first.
+     */
+    protected final Stream<ENTITY> runStream(Bson filter, Sort sort) {
+        return MongoQueryHelpers.stream(collection(), filterFilter(filter), sort);
+    }
+
+    /**
      * Counts documents matching {@code filter}, routing it through {@link #filterFilter} first.
      */
     protected final long runCount(Bson filter) {
@@ -163,6 +171,11 @@ public abstract class FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INP
     @Override
     protected List<ENTITY> internalList(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
         return runList(Filters.and(buildOwnerFilter(ownerId), buildSearchFilter(search, query)), sort);
+    }
+
+    @Override
+    protected Stream<ENTITY> internalStream(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
+        return runStream(Filters.and(buildOwnerFilter(ownerId), buildSearchFilter(search, query)), sort);
     }
 
     @Override

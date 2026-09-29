@@ -10,12 +10,15 @@ import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.EntityListQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaOrder;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
+import com.peluware.freddy.cruder.jpa.query.JpaResult;
 import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * JPA-specific implementation of {@link EntityCrudProvider} that provides
@@ -179,6 +182,22 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
                 sort
             )
         );
+    }
+
+    /**
+     * Every entity matching the given search and query filters, lazily, through a live JPA cursor
+     * ({@link jakarta.persistence.TypedQuery#getResultStream()}) — nothing is loaded until the
+     * returned stream is consumed.
+     */
+    @Override
+    protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
+        return JpaUtils.requireTransactionStream(entityManager, () -> JpaQueryExecutor.exec(
+            entityManager,
+            entityClass,
+            searchPredicate(search, query),
+            JpaOrder.by(sort),
+            JpaResult.stream()
+        ));
     }
 
     /**

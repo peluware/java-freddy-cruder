@@ -14,6 +14,7 @@ import org.bson.conversions.Bson;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * MongoDB-specific implementation of {@link EntityCrudProvider} using the MongoDB sync driver.
@@ -103,6 +104,11 @@ public abstract class MongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends Entit
     @Override
     protected List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort) {
         return MongoQueryHelpers.find(collection(), buildSearchFilter(search, query), sort);
+    }
+
+    @Override
+    protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
+        return MongoQueryHelpers.stream(collection(), buildSearchFilter(search, query), sort);
     }
 
     @Override

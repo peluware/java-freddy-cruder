@@ -38,6 +38,14 @@ public enum CrudOperation {
     LIST(false, true),
 
     /**
+     * Represents an unpaginated, row-by-row read operation.
+     * <br>
+     * This operation involves handing every entity matching the given criteria to a consumer, one
+     * at a time, instead of collecting them.
+     */
+    STREAM(false, true),
+
+    /**
      * Represents a find operation (read only).
      * <br>
      * This operation involves retrieving a specific entity by its ID.

@@ -14,6 +14,7 @@ import org.bson.conversions.Bson;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * MongoDB-specific implementation of {@link EntityCrudProvider} that routes all read
@@ -99,6 +100,13 @@ public abstract class FilterableMongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> ext
     }
 
     /**
+     * Streams a find against the collection, routing {@code filter} through {@link #filterFilter} first.
+     */
+    protected final Stream<ENTITY> runStream(Bson filter, Sort sort) {
+        return MongoQueryHelpers.stream(collection(), filterFilter(filter), sort);
+    }
+
+    /**
      * Counts documents matching {@code filter}, routing it through {@link #filterFilter} first.
      */
     protected final long runCount(Bson filter) {
@@ -147,6 +155,11 @@ public abstract class FilterableMongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> ext
     @Override
     protected List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort) {
         return runList(buildSearchFilter(search, query), sort);
+    }
+
+    @Override
+    protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
+        return runStream(buildSearchFilter(search, query), sort);
     }
 
     @Override

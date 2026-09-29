@@ -12,12 +12,15 @@ import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaOrder;
+import com.peluware.freddy.cruder.jpa.query.JpaResult;
 import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * JPA {@link EntityCrudProvider} that applies a {@link #predicateFilter} to every read query, for
@@ -175,6 +178,22 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
                 sort
             ).addHints(getQueryHints())
         );
+    }
+
+    /**
+     * Every entity matching the given search and query filters — and {@link #predicateFilter} —
+     * lazily, through a live JPA cursor ({@link jakarta.persistence.TypedQuery#getResultStream()})
+     * — nothing is loaded until the returned stream is consumed.
+     */
+    @Override
+    protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
+        return JpaUtils.requireTransactionStream(entityManager, () -> JpaQueryExecutor.exec(
+            entityManager,
+            entityClass,
+            filtered(searchPredicate(search, query)),
+            JpaOrder.by(sort),
+            JpaResult.<ENTITY>stream().addHints(getQueryHints())
+        ));
     }
 
     /**

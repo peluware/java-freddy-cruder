@@ -13,6 +13,8 @@ import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaOrder;
+import com.peluware.freddy.cruder.jpa.query.JpaResult;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.From;
@@ -22,6 +24,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * Owned-resource counterpart of {@link FilterableJpaCrudProvider}: every read query is scoped to
@@ -183,6 +186,23 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
                 sort
             ).addHints(getQueryHints())
         );
+    }
+
+    /**
+     * Every entity belonging to the given owner and matching the given search and query filters —
+     * and {@link #predicateFilter} — lazily, through a live JPA cursor
+     * ({@link jakarta.persistence.TypedQuery#getResultStream()}) — nothing is loaded until the
+     * returned stream is consumed.
+     */
+    @Override
+    protected Stream<ENTITY> internalStream(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
+        return JpaUtils.requireTransactionStream(entityManager, () -> JpaQueryExecutor.exec(
+            entityManager,
+            entityClass,
+            filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+            JpaOrder.by(sort),
+            JpaResult.<ENTITY>stream().addHints(getQueryHints())
+        ));
     }
 
     /**

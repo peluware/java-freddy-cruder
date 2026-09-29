@@ -6,6 +6,93 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ---
 
+## [4.2.0] — 2026-09-29
+
+Suma dos funcionalidades independientes y aditivas: una lectura sin paginar basada en `Stream`, para
+un cursor del almacén que no debería juntarse en memoria antes, y export — convertir un listado en un
+archivo descargable (CSV o Excel), con un subconjunto seleccionable de campos. Nada de 4.1.0 cambia;
+ambas son capacidades nuevas sobre lo que ya existe.
+
+### Añadido
+
+#### `freddy-cruder-core`
+
+- `StreamProvider<OUTPUT>` y `OwnedStreamProvider<OWNER_ID, OUTPUT>` — mismo propósito que
+  `ListProvider`/`OwnedListProvider`, pero un `Stream` de lectura perezosa en vez de un `List`, para un
+  cursor del almacén que no debería juntarse en memoria antes. El `Stream` devuelto debe consumirse y
+  cerrarse antes de que termine la transacción de la llamada.
+- `CrudOperation.STREAM`.
+- `EntityCrudProvider` y `OwnedEntityCrudProvider` ahora implementan `StreamProvider`/
+  `OwnedStreamProvider`. Su `stream(...)` dispara los mismos eventos de ciclo de vida que `list(...)` y
+  mapea cada entidad a su salida de forma perezosa, a medida que se consume el stream; `postProcess`
+  corre al cerrarlo, no al retornar. El `internalStream` por defecto delega en
+  `internalList(...).stream()` — correcto pero no perezoso — así que nada se rompe para un almacén que
+  no se sumó a esto; sobrescríbelo para uno que pueda leer entidades una a la vez.
+
+#### `freddy-cruder-jpa`
+
+- `FilterableJpaCrudProvider`, `FilterableOwnedJpaCrudProvider`, `JpaCrudProvider`,
+  `JpaProjectedCrudProvider` y `JpaOwnedProjectedCrudProvider` sobrescriben `internalStream`/`stream`
+  con un cursor JPA vivo (`TypedQuery#getResultStream()`) — nada se carga hasta que se consume el
+  stream devuelto.
+- `JpaUtils.requireTransactionStream(EntityManager, Supplier<Stream<T>>)` — misma garantía que
+  `requireTransaction`, pero confirma (o revierte) cuando el stream devuelto se cierra en vez de
+  cuando el supplier retorna, porque en ese momento el stream todavía no se ha leído.
+
+#### `freddy-cruder-mongodb`
+
+- `MongoQueryHelpers.stream(...)` y los `internalStream` correspondientes en
+  `FilterableMongoCrudProvider`, `FilterableOwnedMongoCrudProvider` y `MongoCrudProvider` — lee el
+  cursor subyacente de forma perezosa en vez de juntarlo primero en un `List`. El stream devuelto debe
+  cerrarse para liberar el cursor.
+
+#### `freddy-cruder-export` (nuevo)
+
+- `ExportProvider`/`OwnedExportProvider` — el contrato de un export: resolver una búsqueda, query,
+  orden y selección de campos en un `Export` (`filename()`, `mediaType()`, `writeTo(OutputStream)`)
+  de una vez, sin leer nada — la lectura real ocurre cuando se llama a `writeTo`.
+- `ExportField<OUTPUT>` — una pieza nombrada y seleccionable de un registro (clave, etiqueta, cómo
+  leerla del registro), independiente del formato de destino. `ExportField.select(fields, requested)`
+  reduce a las claves pedidas, o lanza `UnknownExportFieldsException` si alguna no existe.
+- `ListExportProvider`/`OwnedListExportProvider`, sobre un `ListProvider`/`OwnedListProvider`, y
+  `StreamExportProvider`/`OwnedStreamExportProvider`, sobre un `StreamProvider`/`OwnedStreamProvider`
+  para un export que no debería juntar todos los registros en memoria a la vez.
+
+#### `freddy-cruder-export-csv` (nuevo)
+
+- `CsvExportProvider`/`OwnedCsvExportProvider` (sobre listado) y sus contrapartes en streaming, sobre
+  Apache Commons CSV, con `charset()` y `format()` para adaptarlos al archivo.
+
+#### `freddy-cruder-export-excel` (nuevo)
+
+- `ExcelExportProvider`/`OwnedExcelExportProvider`, que arman el libro en memoria con `XSSFWorkbook`,
+  y `StreamingExcelExportProvider`/`OwnedStreamingExcelExportProvider`, que usan `SXSSFWorkbook` para
+  volcar filas a un archivo temporal a medida que se escriben, pensado para un export grande.
+  `writeWorkbook` es completamente sobrescribible — nombre de hoja, columnas, estilos, combinaciones,
+  posición inicial — el valor por defecto escribe una sola hoja sin estilo con una fila de cabecera de
+  etiquetas. `CellStyler` aplica un estilo a una celda justo después de escribirla, sin opinión de
+  freddy-cruder sobre fuentes, colores o bordes.
+
+#### `freddy-cruder-spring-web-export` (nuevo)
+
+- `ExportController`/`OwnedExportController` exponen un provider como `GET /export`, envuelto en
+  `CrudContext` con los `SpringCrudOptions` de la petición, escribiendo directo a la respuesta
+  mediante un `StreamingResponseBody`.
+
+#### `freddy-cruder-bom` (nuevo)
+
+- Artefacto solo-POM con la lista de versiones gestionadas de cada módulo de Freddy Cruder y las
+  dependencias de terceros que necesitan — impórtalo en vez de declarar la versión de cada módulo a
+  mano.
+
+### Migración
+
+No hay nada que migrar. Para hacer streaming en vez de listar, llama a `stream(...)` donde llamarías
+a `list(...)`; para exportar, agrega `freddy-cruder-export-csv` o `freddy-cruder-export-excel`, y
+`freddy-cruder-spring-web-export` para exponerlo por REST.
+
+---
+
 ## [4.1.0] — 2026-09-25
 
 Suma la carga masiva: cargar registros desde un archivo — Excel o CSV — a través de un

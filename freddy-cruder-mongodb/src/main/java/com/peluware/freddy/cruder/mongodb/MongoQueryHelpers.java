@@ -10,6 +10,10 @@ import org.bson.conversions.Bson;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Static helpers for common MongoDB collection operations.
@@ -41,6 +45,21 @@ public final class MongoQueryHelpers {
                 .limit(pagination.getSize());
         }
         return iterable.into(new ArrayList<>());
+    }
+
+    /**
+     * Executes a find with optional sort, streaming results from the underlying cursor
+     * instead of loading them all into memory. The returned stream must be closed
+     * (e.g. via try-with-resources) to release the cursor.
+     */
+    public static <T> Stream<T> stream(MongoCollection<T> collection, Bson filter, Sort sort) {
+        var iterable = collection.find(filter);
+        if (sort.isSorted()) {
+            iterable = iterable.sort(toSort(sort));
+        }
+        var cursor = iterable.cursor();
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(cursor, Spliterator.ORDERED), false)
+            .onClose(cursor::close);
     }
 
     /**

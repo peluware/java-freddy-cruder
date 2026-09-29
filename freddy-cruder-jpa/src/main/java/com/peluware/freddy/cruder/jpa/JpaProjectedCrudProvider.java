@@ -7,13 +7,17 @@ import com.peluware.freddy.cruder.CrudProvider;
 import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.ListProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
+import com.peluware.freddy.cruder.StreamProvider;
 import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
 import com.peluware.freddy.cruder.jpa.query.FindQuery;
+import com.peluware.freddy.cruder.jpa.query.JpaCriteria;
 import com.peluware.freddy.cruder.jpa.query.JpaGroupBy;
+import com.peluware.freddy.cruder.jpa.query.JpaOrder;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
+import com.peluware.freddy.cruder.jpa.query.JpaResult;
 import com.peluware.freddy.cruder.jpa.query.JpaSelection;
 import com.peluware.freddy.cruder.jpa.query.JpaSource;
 import com.peluware.freddy.cruder.jpa.query.ListQuery;
@@ -26,6 +30,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * A {@link CrudProvider} that reads through a two-stage pipeline — {@code page}/{@code find}/
@@ -58,7 +63,7 @@ import java.util.function.Supplier;
  * @param <INPUT>      the input DTO type for create/update operations
  * @param <OUTPUT>     the output type returned to the consumer
  */
-public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT>, ListProvider<OUTPUT> {
+public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OUTPUT> implements CrudProvider<ID, INPUT, OUTPUT>, ListProvider<OUTPUT>, StreamProvider<OUTPUT> {
 
     protected final EntityManager entityManager;
     protected final SearchPredicateBuilder searchPredicateBuilder;
@@ -194,6 +199,26 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
             ).addHints(getQueryHints())
         );
         return content.stream().map(this::mapOutput).toList();
+    }
+
+    /**
+     * Every matching row, lazily, through a live JPA cursor
+     * ({@link jakarta.persistence.TypedQuery#getResultStream()}) — same selection, filter and
+     * grouping as {@link #list}, just not collected; nothing is loaded until the returned stream
+     * is consumed.
+     */
+    @Override
+    public Stream<OUTPUT> stream(@Nullable String search, @Nullable String query, Sort sort) {
+        return JpaUtils.requireTransactionStream(entityManager, () -> JpaQueryExecutor.exec(
+            entityManager,
+            JpaCriteria.of(projectionClass),
+            JpaSource.root(entityClass),
+            selection(),
+            filtered(searchPredicate(search, query)),
+            groupBy(),
+            JpaOrder.by(sort),
+            JpaResult.<PROJECTION>stream().addHints(getQueryHints())
+        )).map(this::mapOutput);
     }
 
     @Override

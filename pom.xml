@@ -6,7 +6,7 @@
 
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder</artifactId>
-    <version>4.1.0</version>
+    <version>4.2.0</version>
     <packaging>pom</packaging>
     <name>Freddy Cruder</name>
     <description>
@@ -33,20 +33,25 @@
     <scm>
         <url>https://github.com/peluware/java-freddy-cruder.git</url>
         <connection>scm:git:git://github.com/peluware/java-freddy-cruder.git</connection>
-        <developerConnection>scm:git:sshl://github.com/peluwarejava-freddy-cruder.git</developerConnection>
+        <developerConnection>scm:git:ssh://git@github.com/peluware/java-freddy-cruder.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
     <modules>
+        <module>freddy-cruder-bom</module>
         <module>freddy-cruder-core</module>
         <module>freddy-cruder-bulk-import</module>
         <module>freddy-cruder-bulk-import-excel</module>
         <module>freddy-cruder-bulk-import-csv</module>
+        <module>freddy-cruder-export</module>
+        <module>freddy-cruder-export-csv</module>
+        <module>freddy-cruder-export-excel</module>
         <module>freddy-cruder-memory</module>
         <module>freddy-cruder-jpa</module>
         <module>freddy-cruder-mongodb</module>
         <module>freddy-cruder-spring-data</module>
         <module>freddy-cruder-spring-web-bulk-import</module>
+        <module>freddy-cruder-spring-web-export</module>
         <module>freddy-cruder-spring-data-jpa</module>
         <module>freddy-cruder-spring-data-mongodb</module>
     </modules>
@@ -69,11 +74,6 @@
             </dependency>
             <dependency>
                 <groupId>com.peluware</groupId>
-                <artifactId>freddy-cruder-commons</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.peluware</groupId>
                 <artifactId>freddy-cruder-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -90,6 +90,21 @@
             <dependency>
                 <groupId>com.peluware</groupId>
                 <artifactId>freddy-cruder-bulk-import-csv</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-export</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-export-csv</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-export-excel</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -119,7 +134,17 @@
             </dependency>
             <dependency>
                 <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-spring-web-export</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
                 <artifactId>freddy-cruder-spring-data-jpa</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.peluware</groupId>
+                <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
