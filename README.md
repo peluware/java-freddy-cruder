@@ -66,7 +66,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 ```
 
@@ -77,7 +77,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 ```
 
@@ -88,7 +88,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 ```
 
@@ -99,7 +99,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 ```
 
@@ -110,7 +110,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-mongodb</artifactId>
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 ```
 
@@ -121,7 +121,7 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 ```
 
@@ -132,12 +132,12 @@ Add the module you need to your `pom.xml`. Each module transitively includes its
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-bulk-import-excel</artifactId> <!-- or freddy-cruder-bulk-import-csv -->
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-web-bulk-import</artifactId>
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 ```
 
@@ -151,12 +151,12 @@ dependency of `freddy-cruder-bulk-import-excel` — add it yourself to use `Stre
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-export-excel</artifactId> <!-- or freddy-cruder-export-csv -->
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-web-export</artifactId>
-    <version>4.2.0</version>
+    <version>4.3.0</version>
 </dependency>
 ```
 
@@ -169,7 +169,7 @@ dependency of `freddy-cruder-bulk-import-excel` — add it yourself to use `Stre
         <dependency>
             <groupId>com.peluware</groupId>
             <artifactId>freddy-cruder-bom</artifactId>
-            <version>4.2.0</version>
+            <version>4.3.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>

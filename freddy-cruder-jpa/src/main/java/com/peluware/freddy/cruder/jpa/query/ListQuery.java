@@ -34,16 +34,45 @@ import java.util.List;
  */
 public class ListQuery<T, R> implements JpaQuery<T, R, List<R>> {
 
-    private final Class<R> resultClass;
-    private final JpaSource<T, R> source;
-    private final JpaSelection<T, R> selection;
-    private final JpaPredicate<T> filter;
-    private final JpaGroupBy<T> groupBy;
-    private final Sort sort;
-    private final Pagination pagination;
+    final Class<R> resultClass;
+    final JpaSource<T, R> source;
+    final JpaSelection<T, R> selection;
+    final JpaPredicate<T> filter;
+    final JpaGroupBy<T> groupBy;
+    final Sort sort;
+    final Pagination pagination;
+    final boolean distinct;
 
     /**
      * Selects {@code selection} from {@code source}, filtered, grouped, sorted and paginated.
+     *
+     * @param distinct whether to deduplicate rows ({@code SELECT DISTINCT}) — needed when
+     *                 {@code filter} or {@code source} join a to-many relation, which can otherwise
+     *                 repeat a row once per match on the joined side
+     */
+    public ListQuery(
+        Class<R> resultClass,
+        JpaSource<T, R> source,
+        JpaSelection<T, R> selection,
+        JpaPredicate<T> filter,
+        JpaGroupBy<T> groupBy,
+        Sort sort,
+        Pagination pagination,
+        boolean distinct
+    ) {
+        this.resultClass = resultClass;
+        this.source = source;
+        this.selection = selection;
+        this.filter = filter;
+        this.groupBy = groupBy;
+        this.sort = sort;
+        this.pagination = pagination;
+        this.distinct = distinct;
+    }
+
+    /**
+     * Selects {@code selection} from {@code source}, filtered, grouped, sorted and paginated — no
+     * row deduplication.
      */
     public ListQuery(
         Class<R> resultClass,
@@ -54,17 +83,29 @@ public class ListQuery<T, R> implements JpaQuery<T, R, List<R>> {
         Sort sort,
         Pagination pagination
     ) {
-        this.resultClass = resultClass;
-        this.source = source;
-        this.selection = selection;
-        this.filter = filter;
-        this.groupBy = groupBy;
-        this.sort = sort;
-        this.pagination = pagination;
+        this(resultClass, source, selection, filter, groupBy, sort, pagination, false);
     }
 
     /**
      * Selects {@code selection} from {@code source}, filtered, sorted and paginated — no grouping.
+     *
+     * @param distinct whether to deduplicate rows ({@code SELECT DISTINCT})
+     */
+    public ListQuery(
+        Class<R> resultClass,
+        JpaSource<T, R> source,
+        JpaSelection<T, R> selection,
+        JpaPredicate<T> filter,
+        Sort sort,
+        Pagination pagination,
+        boolean distinct
+    ) {
+        this(resultClass, source, selection, filter, JpaGroupBy.none(), sort, pagination, distinct);
+    }
+
+    /**
+     * Selects {@code selection} from {@code source}, filtered, sorted and paginated — no grouping,
+     * no row deduplication.
      */
     public ListQuery(
         Class<R> resultClass,
@@ -74,7 +115,7 @@ public class ListQuery<T, R> implements JpaQuery<T, R, List<R>> {
         Sort sort,
         Pagination pagination
     ) {
-        this(resultClass, source, selection, filter, JpaGroupBy.none(), sort, pagination);
+        this(resultClass, source, selection, filter, JpaGroupBy.none(), sort, pagination, false);
     }
 
     /**
@@ -115,9 +156,28 @@ public class ListQuery<T, R> implements JpaQuery<T, R, List<R>> {
         this(resultClass, source, selection, filter, Sort.unsorted(), Pagination.unpaginated());
     }
 
+    /**
+     * A copy of this query with row deduplication ({@code SELECT DISTINCT}) turned on — needed when
+     * {@code filter} or {@code source} join a to-many relation, which can otherwise repeat a row once
+     * per match on the joined side. Combine with any constructor, regardless of what it sets sort or
+     * pagination to.
+     */
+    public ListQuery<T, R> distinct() {
+        return this.distinct(true);
+    }
+
+    /**
+     * A copy of this query with row deduplication ({@code SELECT DISTINCT}) set to {@code distinct}.
+     */
+    public ListQuery<T, R> distinct(boolean distinct) {
+        return new ListQuery<>(resultClass, source, selection, filter, groupBy, sort, pagination, distinct);
+    }
+
     @Override
     public final CriteriaQuery<R> create(CriteriaBuilder cb) {
-        return cb.createQuery(resultClass);
+        var cq = cb.createQuery(resultClass);
+        cq.distinct(distinct);
+        return cq;
     }
 
     @Override

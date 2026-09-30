@@ -6,6 +6,55 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [4.3.0] — 2026-09-30
+
+Closes a transaction gap in the streaming paths added in 4.2.0: a `JpaCrudProvider` operation
+invoked from a deferred callback running on a different thread than the one that produced it (a
+streamed export's writer, most notably) could hit Spring's shared `EntityManager` refusing
+`getTransaction()` outright, since Spring reserves that call to `@Transactional`. Also adds row
+deduplication to `ListQuery`/`EntityListQuery`, for a filter that joins a to-many relation.
+
+### Added
+
+#### `freddy-cruder-jpa`
+
+- `JpaTransactionRunner` — how a `JpaCrudProvider` runs an operation that needs a transaction
+  around an `EntityManager`. `JpaTransactionRunners` holds the single instance every provider in
+  the JVM uses — install a different one with `JpaTransactionRunners.install(...)` instead of
+  threading it through every provider's constructor. Defaults to
+  `JpaTransactionRunner.resourceLocal()`, the same behavior as before (delegates to
+  `JpaUtils.requireTransaction`/`requireTransactionStream`).
+- `ListQuery`/`EntityListQuery` gained a `distinct` flag: a `boolean distinct` constructor
+  parameter, and a `distinct()`/`distinct(boolean)` method returning a copy of the query with it
+  set — composable with any existing constructor. Needed when a filter or source joins a to-many
+  relation, which otherwise repeats a row once per match on the joined side; Hibernate 6 no longer
+  deduplicates that implicitly.
+- `JpaCrudProvider`, `FilterableJpaCrudProvider`, `FilterableOwnedJpaCrudProvider`,
+  `JpaProjectedCrudProvider` and `JpaOwnedProjectedCrudProvider` now go through
+  `JpaTransactionRunners.current()` instead of calling `JpaUtils.requireTransaction`/
+  `requireTransactionStream` directly.
+
+#### `freddy-cruder-spring-data-jpa`
+
+- `SpringJpaTransactionRunner` — a `JpaTransactionRunner` backed by a Spring
+  `PlatformTransactionManager`: honors an `EntityManager` already joined to a transaction, or opens
+  a new Spring-managed one on the calling thread otherwise.
+- Auto-configuration installs it once the application context is ready — nothing to configure.
+
+### Fixed
+
+- A `JpaCrudProvider`'s `stream()` — and, through it, a streaming export — invoked from a callback
+  running on a thread with no active Spring transaction (the case for `StreamingResponseBody`'s
+  deferred write) used to throw `IllegalStateException: Not allowed to create transaction on shared
+  EntityManager`. Resolved automatically once `freddy-cruder-spring-data-jpa` is on the classpath.
+
+### Migration
+
+Nothing to migrate — both changes are additive and backward compatible. `distinct` defaults to
+`false` everywhere it wasn't explicitly requested before.
+
+---
+
 ## [4.2.0] — 2026-09-29
 
 Adds two independent, additive features: an unpaginated `Stream`-based read, for a store-backed

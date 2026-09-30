@@ -187,7 +187,7 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      */
     @Override
     protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
-        return JpaUtils.requireTransactionStream(entityManager, () -> JpaQueryExecutor.exec(
+        return JpaTransactionRunners.current().runStream(entityManager, () -> JpaQueryExecutor.exec(
             entityManager,
             entityClass,
             filtered(searchPredicate(search, query)),
@@ -254,7 +254,7 @@ public abstract class FilterableJpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> exten
      */
     @Override
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaUtils.requireTransaction(entityManager, function);
+        return JpaTransactionRunners.current().run(entityManager, function);
     }
 
     // ------------------------------------------------------------

@@ -22,12 +22,12 @@ import java.util.function.Supplier;
  */
 public class FindQuery<T, R> implements JpaQuery<T, R, R> {
 
-    private final Class<R> resultClass;
-    private final JpaSource<T, R> source;
-    private final JpaSelection<T, R> selection;
-    private final JpaPredicate<T> filter;
-    private final JpaGroupBy<T> groupBy;
-    private final Supplier<? extends RuntimeException> onEmpty;
+    final Class<R> resultClass;
+    final JpaSource<T, R> source;
+    final JpaSelection<T, R> selection;
+    final JpaPredicate<T> filter;
+    final JpaGroupBy<T> groupBy;
+    final Supplier<? extends RuntimeException> onEmpty;
 
     public FindQuery(
         Class<R> resultClass,

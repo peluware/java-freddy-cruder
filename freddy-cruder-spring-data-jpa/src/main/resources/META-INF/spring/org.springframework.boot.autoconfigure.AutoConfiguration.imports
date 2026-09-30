@@ -1,1 +1,2 @@
 com.peluware.freddy.cruder.springframework.jpa.autoconfigure.FreddyCruderJpaSearchAutoConfiguration
+com.peluware.freddy.cruder.springframework.jpa.autoconfigure.FreddyCruderJpaTransactionAutoConfiguration

@@ -30,6 +30,20 @@ public class EntityListQuery<T> extends ListQuery<T, T> {
     }
 
     /**
+     * Lists the entities of {@code entityClass} matching {@code filter}, sorted and paginated.
+     *
+     * @param entityClass the entity to list
+     * @param filter      the predicate to match
+     * @param sort        the sort specification
+     * @param pagination  the pagination specification
+     * @param distinct    whether to deduplicate rows ({@code SELECT DISTINCT}) — needed when
+     *                     {@code filter} joins a to-many relation
+     */
+    public EntityListQuery(Class<T> entityClass, JpaPredicate<T> filter, Sort sort, Pagination pagination, boolean distinct) {
+        super(entityClass, JpaSource.root(entityClass), JpaSelection.self(), filter, sort, pagination, distinct);
+    }
+
+    /**
      * Lists the entities matching {@code filter}, sorted, without pagination.
      *
      * @param entityClass the entity to list
@@ -99,5 +113,15 @@ public class EntityListQuery<T> extends ListQuery<T, T> {
      */
     public EntityListQuery(Class<T> entityClass) {
         this(entityClass, JpaPredicate.all(), Sort.unsorted(), Pagination.unpaginated());
+    }
+
+    @Override
+    public EntityListQuery<T> distinct() {
+        return distinct(true);
+    }
+
+    @Override
+    public EntityListQuery<T> distinct(boolean distinct) {
+        return new EntityListQuery<>(resultClass, filter, sort, pagination, distinct);
     }
 }

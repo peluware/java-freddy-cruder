@@ -19,8 +19,8 @@ import org.jspecify.annotations.Nullable;
  */
 public class ExistsQuery<T> implements JpaQuery<T, Long, Boolean> {
 
-    private final JpaSource<T, Long> source;
-    private final JpaPredicate<T> filter;
+    final JpaSource<T, Long> source;
+    final JpaPredicate<T> filter;
 
     /**
      * Whether {@code source} has any row.

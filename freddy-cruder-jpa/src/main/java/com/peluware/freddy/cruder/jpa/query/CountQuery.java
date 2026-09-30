@@ -17,8 +17,8 @@ import org.jspecify.annotations.Nullable;
  */
 public class CountQuery<T> implements JpaQuery<T, Long, Long> {
 
-    private final JpaSource<T, Long> source;
-    private final JpaPredicate<T> filter;
+    final JpaSource<T, Long> source;
+    final JpaPredicate<T> filter;
 
     /**
      * Counts every row of {@code source}.

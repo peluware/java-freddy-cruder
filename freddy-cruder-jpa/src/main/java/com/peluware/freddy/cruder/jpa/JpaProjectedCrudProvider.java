@@ -209,7 +209,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      */
     @Override
     public Stream<OUTPUT> stream(@Nullable String search, @Nullable String query, Sort sort) {
-        return JpaUtils.requireTransactionStream(entityManager, () -> JpaQueryExecutor.exec(
+        return JpaTransactionRunners.current().runStream(entityManager, () -> JpaQueryExecutor.exec(
             entityManager,
             JpaCriteria.of(projectionClass),
             JpaSource.root(entityClass),
@@ -519,7 +519,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      * Executes the given function within a JPA transaction managed by the entity manager.
      */
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaUtils.requireTransaction(entityManager, function);
+        return JpaTransactionRunners.current().run(entityManager, function);
     }
 
     // ------------------------------------------------------------

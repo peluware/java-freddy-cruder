@@ -196,7 +196,7 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
      */
     @Override
     protected Stream<ENTITY> internalStream(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
-        return JpaUtils.requireTransactionStream(entityManager, () -> JpaQueryExecutor.exec(
+        return JpaTransactionRunners.current().runStream(entityManager, () -> JpaQueryExecutor.exec(
             entityManager,
             entityClass,
             filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
@@ -263,7 +263,7 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
      */
     @Override
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaUtils.requireTransaction(entityManager, function);
+        return JpaTransactionRunners.current().run(entityManager, function);
     }
 
     // ------------------------------------------------------------
