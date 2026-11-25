@@ -7,16 +7,12 @@
     <parent>
         <groupId>com.peluware</groupId>
         <artifactId>freddy-cruder</artifactId>
-        <version>4.3.0</version>
+        <version>5.0.0</version>
     </parent>
 
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
     <name>Freddy Cruder Spring Data JPA</name>
     <description>JPA integration for Freddy Cruder Spring Data module.</description>
-
-    <properties>
-        <org.springframework.boot.version>4.1.0</org.springframework.boot.version>
-    </properties>
 
     <dependencies>
         <dependency>
@@ -44,6 +40,22 @@
             <groupId>jakarta.persistence</groupId>
             <artifactId>jakarta.persistence-api</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

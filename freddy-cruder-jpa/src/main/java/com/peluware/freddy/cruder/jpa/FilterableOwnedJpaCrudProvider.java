@@ -4,6 +4,8 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.freddy.cruder.OwnedEntityCrudProvider;
 import com.peluware.freddy.cruder.OwnedId;
@@ -14,7 +16,9 @@ import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
 import com.peluware.freddy.cruder.jpa.query.JpaOrder;
+import com.peluware.freddy.cruder.jpa.query.JpaQueryHints;
 import com.peluware.freddy.cruder.jpa.query.JpaResult;
+import com.peluware.freddy.cruder.jpa.query.JpaResultHints;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.From;
@@ -141,11 +145,14 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     protected ENTITY internalFind(OWNER_ID ownerId, ID id) throws NotFoundEntityException {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityFindQuery<>(
-                entityClass,
-                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
-                () -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityFindQuery<>(
+                    entityClass,
+                    filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
+                    NotFoundEntityException.supplier(entityClass, new OwnedId<>(ownerId, id))
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -157,12 +164,15 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     protected Page<ENTITY> internalPage(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var content = JpaQueryExecutor.exec(
             entityManager,
-            new EntityListQuery<>(
-                entityClass,
-                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
-                sort,
-                pagination
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityListQuery<>(
+                    entityClass,
+                    filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+                    sort,
+                    pagination
+                ),
+                getQueryHints()
+            )
         );
         return Page.deferred(
             content,
@@ -180,11 +190,14 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     protected List<ENTITY> internalList(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityListQuery<>(
-                entityClass,
-                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
-                sort
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityListQuery<>(
+                    entityClass,
+                    filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+                    sort
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -196,12 +209,12 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
      */
     @Override
     protected Stream<ENTITY> internalStream(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
-        return JpaTransactionRunners.current().runStream(entityManager, () -> JpaQueryExecutor.exec(
+        return JpaTransactionRunners.installed().runStream(entityManager, () -> JpaQueryExecutor.exec(
             entityManager,
             entityClass,
             filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
             JpaOrder.by(sort),
-            JpaResult.<ENTITY>stream().addHints(getQueryHints())
+            new JpaResultHints<>(JpaResult.stream(), getQueryHints())
         ));
     }
 
@@ -212,10 +225,13 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     protected long internalCount(OWNER_ID ownerId, @Nullable String search, @Nullable String query) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityCountQuery<>(
-                entityClass,
-                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query)))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityCountQuery<>(
+                    entityClass,
+                    filtered(ownerPredicate(ownerId).and(searchPredicate(search, query)))
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -226,10 +242,13 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     protected boolean internalExists(OWNER_ID ownerId, ID id) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityExistsQuery<>(
-                entityClass,
-                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id)))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityExistsQuery<>(
+                    entityClass,
+                    filtered(ownerPredicate(ownerId).and(buildIdPredicate(id)))
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -263,7 +282,7 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
      */
     @Override
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaTransactionRunners.current().run(entityManager, function);
+        return JpaTransactionRunners.installed().run(entityManager, function);
     }
 
     // ------------------------------------------------------------
@@ -284,16 +303,14 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
     /**
      * A cross-cutting filter applied to every read query ({@code find}, {@code page}, {@code count},
      * {@code exists}) but never to writes, independent of the owner scope enforced by
-     * {@link #buildOwnerPredicate}. Override to scope every query — for soft-delete or row-level
+     * {@link #buildOwnerPredicate}. Implement it to scope every query — for soft-delete or row-level
      * security:
      *
      * <pre>{@code (from, cb) -> cb.isFalse(from.get("deleted"))}</pre>
      *
-     * @return the cross-cutting filter, or {@link JpaPredicate#all()} for none (the default)
+     * @return the cross-cutting filter
      */
-    protected JpaPredicate<ENTITY> predicateFilter() {
-        return JpaPredicate.all();
-    }
+    protected abstract JpaPredicate<ENTITY> predicateFilter();
 
     /**
      * Builds a predicate that restricts queries to entities belonging to the given owner.
@@ -364,5 +381,41 @@ public abstract class FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, INPUT
      */
     protected Map<String, Object> getQueryHints() {
         return Map.of();
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, OWNER_ID, ID, OUTPUT> extends FilterableOwnedJpaCrudProvider<ENTITY, OWNER_ID, ID, Void, OUTPUT> implements ReadOnlyProvider {
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityManager, searchPredicateBuilder, entityClass, events);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass) {
+            super(entityManager, searchPredicateBuilder, entityClass);
+        }
+
+        public ReadOnly(EntityManager entityManager, Class<ENTITY> entityClass) {
+            super(entityManager, entityClass);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityManager, searchPredicateBuilder, events);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder) {
+            super(entityManager, searchPredicateBuilder);
+        }
+
+        public ReadOnly(EntityManager entityManager) {
+            super(entityManager);
+        }
+
+        @Override
+        protected final void mapInput(OWNER_ID ownerId, Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

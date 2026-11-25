@@ -4,12 +4,15 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.repository.CrudRepository;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Spring Data implementation of {@link EntityCrudProvider} that delegates persistence
@@ -159,6 +162,11 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
     }
 
     @Override
+    protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
+        return internalList(search, query, sort).stream();
+    }
+
+    @Override
     protected long internalCount(@Nullable String search, @Nullable String query) {
         return searchRepository.countBySearch(search, query);
     }
@@ -181,5 +189,33 @@ public abstract class SpringRepositoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> ex
     @Override
     protected void internalDelete(ENTITY entity) {
         repository.delete(entity);
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, ID, OUTPUT> extends SpringRepositoryCrudProvider<ENTITY, ID, Void, OUTPUT> implements ReadOnlyProvider {
+
+        public ReadOnly(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(repository, searchRepository, entityClass, events);
+        }
+
+        public ReadOnly(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, Class<ENTITY> entityClass) {
+            super(repository, searchRepository, entityClass);
+        }
+
+        public ReadOnly(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(repository, searchRepository, events);
+        }
+
+        public ReadOnly(CrudRepository<ENTITY, ID> repository, SearchRepository<ENTITY> searchRepository) {
+            super(repository, searchRepository);
+        }
+
+        @Override
+        protected final void mapInput(Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

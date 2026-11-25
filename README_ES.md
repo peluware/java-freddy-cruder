@@ -66,7 +66,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-core</artifactId>
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 
@@ -77,7 +77,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-jpa</artifactId>
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 
@@ -88,7 +88,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data</artifactId>
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 
@@ -99,7 +99,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-jpa</artifactId>
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 
@@ -110,7 +110,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-mongodb</artifactId>
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 
@@ -121,7 +121,7 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-data-mongodb</artifactId>
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 
@@ -132,12 +132,12 @@ Agrega el módulo que necesitas en tu `pom.xml`. Cada módulo incluye sus depend
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-bulk-import-excel</artifactId> <!-- o freddy-cruder-bulk-import-csv -->
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-web-bulk-import</artifactId>
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 
@@ -152,12 +152,12 @@ dependencia opcional de `freddy-cruder-bulk-import-excel` — agrégala tú para
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-export-excel</artifactId> <!-- o freddy-cruder-export-csv -->
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 <dependency>
     <groupId>com.peluware</groupId>
     <artifactId>freddy-cruder-spring-web-export</artifactId>
-    <version>4.2.0</version>
+    <version>5.0.0</version>
 </dependency>
 ```
 
@@ -170,7 +170,7 @@ dependencia opcional de `freddy-cruder-bulk-import-excel` — agrégala tú para
         <dependency>
             <groupId>com.peluware</groupId>
             <artifactId>freddy-cruder-bom</artifactId>
-            <version>4.2.0</version>
+            <version>5.0.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -251,10 +251,6 @@ protected void preProcess(CrudOperation operation) {
 protected void postProcess(CrudOperation operation) {
 }
 
-protected String applyQueryPolicies(String query) {
-    return query;
-}
-
 protected <T> T withTransaction(Supplier<T> function) {
     return function.get();
 }
@@ -269,6 +265,20 @@ protected void afterUpdate(INPUT input, ENTITY updated) {
 ```
 
 `afterCreate`/`afterUpdate` se ejecutan justo después de persistir, dentro de la misma transacción, con el DTO de entrada y la entidad ya persistida (con su identificador generado disponible). Úsalos para persistir entidades dependientes que necesitan el identificador del padre pero no tienen una relación directa a nivel de store.
+
+### Providers de solo lectura
+
+Cada provider tiene una clase anidada `ReadOnly`: `create`, `update` y `delete` lanzan `ReadOnlyException`
+(una `UnsupportedOperationException`), el tipo de input es `Void` y `mapInput` ya está implementado.
+
+```java
+public class ProductQueries extends FilterableJpaCrudProvider.ReadOnly<Product, Long, ProductOutput> {
+
+    // solo mapOutput y predicateFilter
+}
+```
+
+Son `ReadOnlyProvider`, una interfaz marcadora que también puedes implementar en cualquier `EntityCrudProvider`.
 
 ### `CrudOptions`
 

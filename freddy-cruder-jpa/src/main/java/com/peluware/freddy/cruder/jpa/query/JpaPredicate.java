@@ -5,7 +5,10 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.metamodel.Metamodel;
+import jakarta.persistence.metamodel.SingularAttribute;
 import org.jspecify.annotations.Nullable;
+
+import java.util.Collection;
 
 /**
  * Builds the {@code WHERE} predicate of a Criteria query from the query source (a {@code Root}
@@ -68,6 +71,50 @@ public interface JpaPredicate<ENTITY> {
      */
     static <ENTITY> JpaPredicate<ENTITY> all() {
         return (_, _) -> null;
+    }
+
+    /**
+     * Matches the entities whose {@code attribute} equals {@code value}, naming the attribute through
+     * the metamodel so that its type is checked at compile time. A {@code null} {@code value} matches
+     * {@code IS NULL}.
+     *
+     * @param attribute the metamodel attribute to compare
+     * @param value     the value to compare it with
+     * @param <ENTITY>  the entity type of the query source
+     * @param <V>       the attribute type
+     * @return a predicate matching the attribute against {@code value}
+     */
+    static <ENTITY, V> JpaPredicate<ENTITY> eq(SingularAttribute<? super ENTITY, V> attribute, @Nullable V value) {
+        return (from, cb) -> value == null
+            ? cb.isNull(from.get(attribute))
+            : cb.equal(from.get(attribute), value);
+    }
+
+    /**
+     * Matches the entities whose {@code attribute} is one of {@code values}. An empty collection
+     * matches nothing.
+     *
+     * @param attribute the metamodel attribute to compare
+     * @param values    the accepted values
+     * @param <ENTITY>  the entity type of the query source
+     * @param <V>       the attribute type
+     * @return a predicate matching the attribute against any of {@code values}
+     */
+    static <ENTITY, V> JpaPredicate<ENTITY> in(SingularAttribute<? super ENTITY, V> attribute, Collection<? extends V> values) {
+        return (from, cb) -> values.isEmpty()
+            ? cb.disjunction()
+            : from.get(attribute).in(values);
+    }
+
+    /**
+     * Matches the entities whose boolean {@code attribute} is {@code true}.
+     *
+     * @param attribute the metamodel attribute to test
+     * @param <ENTITY>  the entity type of the query source
+     * @return a predicate matching when the attribute is {@code true}
+     */
+    static <ENTITY> JpaPredicate<ENTITY> isTrue(SingularAttribute<? super ENTITY, Boolean> attribute) {
+        return (from, cb) -> cb.isTrue(from.get(attribute));
     }
 
     /**

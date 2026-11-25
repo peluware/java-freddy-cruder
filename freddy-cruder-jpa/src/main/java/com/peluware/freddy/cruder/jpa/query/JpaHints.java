@@ -8,16 +8,18 @@ import java.util.Map;
 
 /**
  * Standard Jakarta Persistence query hints, as named constants and single-hint factories, for
- * {@link JpaQuery#addHints(Map)} and for {@code getQueryHints()} overrides in the providers.
+ * {@link JpaQueryHints} and {@link JpaResultHints} and for {@code getQueryHints()} overrides in the
+ * providers.
  *
  * <pre>{@code
  * // one hint
- * new EntityFindQuery<>(Product.class, byId, onMissing)
- *     .addHints(JpaHints.fetchGraph(graph))
+ * new JpaQueryHints<>(
+ *         new EntityFindQuery<>(Product.class, byId, onMissing),
+ *         JpaHints.fetchGraph(graph))
  *     .exec(entityManager);
  *
  * // several — compose with the constants
- * query.addHints(Map.of(
+ * new JpaQueryHints<>(query, Map.of(
  *     JpaHints.FETCH_GRAPH, graph,
  *     JpaHints.QUERY_TIMEOUT, 500));
  * }</pre>

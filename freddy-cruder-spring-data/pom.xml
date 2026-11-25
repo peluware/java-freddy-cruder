@@ -7,15 +7,11 @@
     <parent>
         <groupId>com.peluware</groupId>
         <artifactId>freddy-cruder</artifactId>
-        <version>4.3.0</version>
+        <version>5.0.0</version>
     </parent>
 
     <artifactId>freddy-cruder-spring-data</artifactId>
     <name>Freddy Cruder Spring Boot Starter</name>
-
-    <properties>
-        <org.springframework.boot.version>4.1.0</org.springframework.boot.version>
-    </properties>
 
     <dependencies>
         <dependency>
@@ -25,7 +21,7 @@
         <dependency>
             <groupId>org.jspecify</groupId>
             <artifactId>jspecify</artifactId>
-            <version>1.0.0</version>
+            <version>${jspecify.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.data</groupId>

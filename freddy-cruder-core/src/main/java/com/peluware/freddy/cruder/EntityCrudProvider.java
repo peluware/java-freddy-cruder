@@ -130,7 +130,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
         preProcess(CrudOperation.PAGE);
 
         var normalized = StringUtils.normalize(search);
-        var page = resolvePage(normalized, query, pagination, sort);
+        var page = internalPage(normalized, query, pagination, sort);
 
         events.onPage(page);
         page.getContent().forEach(events::eachEntity);
@@ -152,7 +152,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
         preProcess(CrudOperation.LIST);
 
         var normalized = StringUtils.normalize(search);
-        var content = resolveList(normalized, query, sort);
+        var content = internalList(normalized, query, sort);
 
         content.forEach(events::eachEntity);
 
@@ -175,7 +175,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
         preProcess(CrudOperation.STREAM);
 
         var normalized = StringUtils.normalize(search);
-        return resolveStream(normalized, query, sort)
+        return internalStream(normalized, query, sort)
             .onClose(() -> postProcess(CrudOperation.STREAM))
             .peek(events::eachEntity)
             .map(this::mapOutput);
@@ -215,7 +215,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
         preProcess(CrudOperation.COUNT);
 
         var normalized = StringUtils.normalize(search);
-        var count = resolveCount(normalized, query);
+        var count = internalCount(normalized, query);
 
         events.onCount(count);
 
@@ -261,6 +261,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      */
     @Override
     public OUTPUT create(@NotNull @Valid INPUT input) {
+        ReadOnlyProvider.rejectWrite(this);
         preProcess(CrudOperation.CREATE);
 
         var result = withTransaction(() -> {
@@ -299,6 +300,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      */
     @Override
     public OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundEntityException {
+        ReadOnlyProvider.rejectWrite(this);
         preProcess(CrudOperation.UPDATE);
 
         var result = withTransaction(() -> {
@@ -335,6 +337,7 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
      */
     @Override
     public void delete(@NotNull ID id) throws NotFoundEntityException {
+        ReadOnlyProvider.rejectWrite(this);
         preProcess(CrudOperation.DELETE);
 
         withTransaction(() -> {
@@ -385,19 +388,16 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
     /**
      * Every matching entity, lazily.
      *
-     * <p>The default implementation delegates to {@link #internalList} and streams its result —
-     * correct, but not lazy: everything is loaded before the first element is handed out. Override
-     * it for a store that can read entities one at a time (a JPA cursor, a Mongo cursor) without
-     * collecting them into a {@link List} first.</p>
+     * <p>A store that can read entities one at a time (a JPA cursor, a Mongo cursor) should do so
+     * without collecting them into a {@link List} first; one that cannot may stream the result of
+     * {@link #internalList}.</p>
      *
      * @param search normalized search string
      * @param query  processed query expression
      * @param sort   sorting configuration
      * @return every matching entity, lazily
      */
-    protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
-        return internalList(search, query, sort).stream();
-    }
+    protected abstract Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort);
 
     protected abstract long internalCount(@Nullable String search, @Nullable String query);
 
@@ -509,34 +509,30 @@ public abstract class EntityCrudProvider<ENTITY, ID, INPUT, OUTPUT> implements C
     }
 
     /**
-     * Processes the raw query string before use.
-     *
-     * @param query the raw query string
-     * @return the processed query string
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
      */
-    protected @Nullable String applyQueryPolicies(@Nullable String query) {
-        return query;
+    public abstract static class ReadOnly<ENTITY, ID, OUTPUT> extends EntityCrudProvider<ENTITY, ID, Void, OUTPUT> implements ReadOnlyProvider {
+
+        protected ReadOnly(Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityClass, events);
+        }
+
+        protected ReadOnly(Class<ENTITY> entityClass) {
+            super(entityClass);
+        }
+
+        protected ReadOnly(EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(events);
+        }
+
+        protected ReadOnly() {
+            super();
+        }
+
+        @Override
+        protected final void mapInput(Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
-
-    private Page<ENTITY> resolvePage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
-        var newQuery = applyQueryPolicies(query);
-        return internalPage(search, newQuery, pagination, sort);
-    }
-
-    private List<ENTITY> resolveList(@Nullable String search, @Nullable String query, Sort sort) {
-        var newQuery = applyQueryPolicies(query);
-        return internalList(search, newQuery, sort);
-    }
-
-    private Stream<ENTITY> resolveStream(@Nullable String search, @Nullable String query, Sort sort) {
-        var newQuery = applyQueryPolicies(query);
-        return internalStream(search, newQuery, sort);
-    }
-
-    private long resolveCount(@Nullable String search, @Nullable String query) {
-        var newQuery = applyQueryPolicies(query);
-        return internalCount(search, newQuery);
-    }
-
-
 }

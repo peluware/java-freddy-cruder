@@ -1,20 +1,23 @@
 package com.peluware.freddy.cruder.jpa;
 
 import com.peluware.domain.Sort;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.Attribute;
+import jakarta.persistence.metamodel.CollectionAttribute;
+import jakarta.persistence.metamodel.ListAttribute;
 import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.MapAttribute;
+import jakarta.persistence.metamodel.SetAttribute;
 import jakarta.persistence.metamodel.Metamodel;
 import jakarta.persistence.metamodel.PluralAttribute;
+import jakarta.persistence.metamodel.SingularAttribute;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 public class JpaUtils {
 
@@ -85,7 +88,7 @@ public class JpaUtils {
             var attribute = graph[i];
 
             if (!hasAttribute(attribute, classMetadata)) {
-                throw new IllegalArgumentException("Unknown property: " + attribute + " From<?,?> entity " + classMetadata.getJavaType().getName());
+                throw new IllegalArgumentException("Unknown property: " + attribute + " in entity " + classMetadata.getJavaType().getName());
             }
 
             var jpaAttribute = classMetadata.getAttribute(attribute);
@@ -144,7 +147,7 @@ public class JpaUtils {
      *
      * @param property      Property name.
      * @param classMetadata Class metamodel that may hold that property.
-     * @return <tt>true</tt> if the class has that property, <tt>false</tt> otherwise.
+     * @return {@code true} if the class has that property, {@code false} otherwise.
      */
     public static <E> boolean hasAttribute(String property, ManagedType<E> classMetadata) {
         Set<Attribute<? super E, ?>> names = classMetadata.getAttributes();
@@ -168,113 +171,83 @@ public class JpaUtils {
         return property.getJavaType();
     }
 
+    private static @Nullable Join<?, ?> findJoin(From<?, ?> from, String attribute, JoinType joinType) {
+        for (var join : from.getJoins()) {
+            if (join.getAttribute().getName().equals(attribute) && join.getJoinType() == joinType) {
+                return join;
+            }
+        }
+        return null;
+    }
 
+    /**
+     * Returns the join of {@code from} on the attribute named {@code attribute} with {@code joinType},
+     * creating it when there is none yet.
+     *
+     * @param from      the source to join from
+     * @param attribute the name of the attribute to join through
+     * @param joinType  the type of join
+     * @return the existing join, or a new one
+     */
     public static Join<?, ?> getOrCreateJoin(From<?, ?> from, String attribute, JoinType joinType) {
-        return from.getJoins().stream()
-            .filter(join -> join.getAttribute().getName().equals(attribute) && join.getJoinType() == joinType)
-            .findFirst()
-            .orElseGet(() -> from.join(attribute, joinType));
+        var existing = findJoin(from, attribute, joinType);
+        return existing != null ? existing : from.join(attribute, joinType);
     }
 
     /**
-     * Executes {@code function} within a transaction, honoring any existing external
-     * transaction (Spring, JTA, or container-managed).
-     *
-     * <p>
-     * If the entity manager is already joined to an active transaction
-     * ({@link EntityManager#isJoinedToTransaction()} returns {@code true}),
-     * the function executes directly without opening a new transaction —
-     * the caller's transaction boundary is reused.
-     * </p>
-     *
-     * <p>
-     * If no transaction is active, the method attempts to start and manage a
-     * resource-local {@link EntityTransaction}. If the entity manager is
-     * JTA-managed (e.g. in a Jakarta EE container or Spring with JTA), calling
-     * {@link EntityManager#getTransaction()} is not permitted and will throw
-     * {@link IllegalStateException} — in that case the function executes directly,
-     * delegating transaction management to the JTA coordinator.
-     * </p>
-     *
-     * @param em       the entity manager whose transaction context is checked
-     * @param function the operation to execute
-     * @param <T>      the return type
-     * @return the result of the function
+     * Same as {@link #getOrCreateJoin(From, String, JoinType)}, but for a {@code List} attribute from
+     * the metamodel, returning a {@link ListJoin} typed with it.
      */
-    public static <T> T requireTransaction(EntityManager em, Supplier<T> function) {
-        if (em.isJoinedToTransaction()) {
-            return function.get();
-        }
-        try {
-            return requireTransaction(em.getTransaction(), function);
-        } catch (IllegalStateException e) {
-            // JTA-managed EntityManager — transaction boundary is the container's responsibility
-            return function.get();
-        }
+    @SuppressWarnings("unchecked")
+    public static <X, Y> ListJoin<X, Y> getOrCreateJoin(From<?, X> from, ListAttribute<? super X, Y> attribute, JoinType joinType) {
+        var existing = findJoin(from, attribute.getName(), joinType);
+        return existing != null ? (ListJoin<X, Y>) existing : from.join(attribute, joinType);
     }
 
     /**
-     * Same guarantee as {@link #requireTransaction(EntityManager, Supplier)}, but for a lazily
-     * consumed {@link Stream}: if this method opens the transaction, it is not committed when
-     * {@code supplier} returns — the stream is still unread at that point — but when the
-     * returned stream is closed, via {@link Stream#onClose(Runnable)}.
-     *
-     * <p>Callers must consume and close the returned stream (e.g. try-with-resources) before
-     * the entity manager itself is closed.</p>
+     * Same as {@link #getOrCreateJoin(From, String, JoinType)}, but for a {@code Set} attribute from
+     * the metamodel, returning a {@link SetJoin} typed with it.
      */
-    public static <T> Stream<T> requireTransactionStream(EntityManager em, Supplier<Stream<T>> supplier) {
-        if (em.isJoinedToTransaction()) {
-            return supplier.get();
-        }
-
-        EntityTransaction transaction;
-        try {
-            transaction = em.getTransaction();
-        } catch (IllegalStateException e) {
-            // JTA-managed EntityManager — transaction boundary is the container's responsibility
-            return supplier.get();
-        }
-
-        boolean weStartedIt = !transaction.isActive();
-        if (!weStartedIt) {
-            return supplier.get();
-        }
-
-        transaction.begin();
-        try {
-            return supplier.get().onClose(() -> {
-                if (transaction.isActive()) {
-                    transaction.commit();
-                }
-            });
-        } catch (RuntimeException e) {
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
-            throw e;
-        }
+    @SuppressWarnings("unchecked")
+    public static <X, Y> SetJoin<X, Y> getOrCreateJoin(From<?, X> from, SetAttribute<? super X, Y> attribute, JoinType joinType) {
+        var existing = findJoin(from, attribute.getName(), joinType);
+        return existing != null ? (SetJoin<X, Y>) existing : from.join(attribute, joinType);
     }
 
-    public static <T> T requireTransaction(EntityTransaction transaction, Supplier<T> function) {
-        boolean weStartedIt = !transaction.isActive();
-
-        try {
-            if (weStartedIt) {
-                transaction.begin();
-            }
-
-            T result = function.get();
-
-            if (weStartedIt) {
-                transaction.commit();
-            }
-
-            return result;
-        } catch (RuntimeException e) {
-            if (weStartedIt && transaction.isActive()) {
-                transaction.rollback();
-            }
-            throw e;
-        }
+    /**
+     * Same as {@link #getOrCreateJoin(From, String, JoinType)}, but for a {@code Collection} attribute
+     * from the metamodel, returning a {@link CollectionJoin} typed with it.
+     */
+    @SuppressWarnings("unchecked")
+    public static <X, Y> CollectionJoin<X, Y> getOrCreateJoin(From<?, X> from, CollectionAttribute<? super X, Y> attribute, JoinType joinType) {
+        var existing = findJoin(from, attribute.getName(), joinType);
+        return existing != null ? (CollectionJoin<X, Y>) existing : from.join(attribute, joinType);
     }
+
+    /**
+     * Same as {@link #getOrCreateJoin(From, String, JoinType)}, but for a {@code Map} attribute from
+     * the metamodel, returning a {@link MapJoin} typed with its key and value.
+     */
+    @SuppressWarnings("unchecked")
+    public static <X, K, V> MapJoin<X, K, V> getOrCreateJoin(From<?, X> from, MapAttribute<? super X, K, V> attribute, JoinType joinType) {
+        var existing = findJoin(from, attribute.getName(), joinType);
+        return existing != null ? (MapJoin<X, K, V>) existing : from.join(attribute, joinType);
+    }
+
+    /**
+     * Same as {@link #getOrCreateJoin(From, String, JoinType)}, but takes the attribute from the
+     * metamodel and returns a {@link Join} typed with it. Reuses an existing join on the same
+     * attribute and join type.
+     *
+     * @param from      the source to join from
+     * @param attribute the metamodel attribute to join through
+     * @param joinType  the type of join
+     * @return the existing join on {@code attribute} with {@code joinType}, or a new one
+     */
+    @SuppressWarnings("unchecked")
+    public static <X, Y> Join<X, Y> getOrCreateJoin(From<?, X> from, SingularAttribute<? super X, Y> attribute, JoinType joinType) {
+        var existing = findJoin(from, attribute.getName(), joinType);
+        return existing != null ? (Join<X, Y>) existing : from.join(attribute, joinType);
+    }
+
 }

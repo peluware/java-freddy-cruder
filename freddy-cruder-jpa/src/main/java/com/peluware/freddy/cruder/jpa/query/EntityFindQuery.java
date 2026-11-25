@@ -8,7 +8,7 @@ import java.util.function.Supplier;
  *
  * <pre>{@code
  * Product p = JpaQueryExecutor.exec(em, new EntityFindQuery<>(
- *     Product.class, byId, () -> new NotFoundEntityException(Product.class, id)));
+ *     Product.class, byId, NotFoundEntityException.supplier(Product.class, id)));
  * }</pre>
  *
  * @param <T> the entity type

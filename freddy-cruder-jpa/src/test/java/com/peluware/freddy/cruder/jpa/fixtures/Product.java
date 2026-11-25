@@ -20,6 +20,8 @@ public class Product {
 
     public String name;
 
+    public Boolean active;
+
     @ManyToOne(fetch = FetchType.LAZY)
     public Category category;
 

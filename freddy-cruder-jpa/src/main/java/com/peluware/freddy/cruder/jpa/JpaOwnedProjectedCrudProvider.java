@@ -10,6 +10,8 @@ import com.peluware.freddy.cruder.OwnedCrudProvider;
 import com.peluware.freddy.cruder.OwnedId;
 import com.peluware.freddy.cruder.OwnedListProvider;
 import com.peluware.freddy.cruder.OwnedStreamProvider;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityFindQuery;
@@ -19,7 +21,9 @@ import com.peluware.freddy.cruder.jpa.query.JpaGroupBy;
 import com.peluware.freddy.cruder.jpa.query.JpaOrder;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
+import com.peluware.freddy.cruder.jpa.query.JpaQueryHints;
 import com.peluware.freddy.cruder.jpa.query.JpaResult;
+import com.peluware.freddy.cruder.jpa.query.JpaResultHints;
 import com.peluware.freddy.cruder.jpa.query.JpaSelection;
 import com.peluware.freddy.cruder.jpa.query.JpaSource;
 import com.peluware.freddy.cruder.jpa.query.ListQuery;
@@ -165,15 +169,18 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     public Page<OUTPUT> page(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var content = JpaQueryExecutor.exec(
             entityManager,
-            new ListQuery<>(
-                projectionClass,
-                JpaSource.root(entityClass),
-                selection(),
-                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
-                groupBy(),
-                sort,
-                pagination
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new ListQuery<>(
+                    projectionClass,
+                    JpaSource.root(entityClass),
+                    selection(),
+                    filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+                    groupBy(),
+                    sort,
+                    pagination
+                ),
+                getQueryHints()
+            )
         );
         var mapped = content.stream().map(projection -> mapOutput(ownerId, projection)).toList();
         return Page.deferred(mapped, pagination, sort, () -> count(ownerId, search, query));
@@ -183,15 +190,18 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     public List<OUTPUT> list(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
         var content = JpaQueryExecutor.exec(
             entityManager,
-            new ListQuery<>(
-                projectionClass,
-                JpaSource.root(entityClass),
-                selection(),
-                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
-                groupBy(),
-                sort,
-                Pagination.unpaginated()
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new ListQuery<>(
+                    projectionClass,
+                    JpaSource.root(entityClass),
+                    selection(),
+                    filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
+                    groupBy(),
+                    sort,
+                    Pagination.unpaginated()
+                ),
+                getQueryHints()
+            )
         );
         return content.stream().map(projection -> mapOutput(ownerId, projection)).toList();
     }
@@ -204,7 +214,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
      */
     @Override
     public Stream<OUTPUT> stream(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
-        return JpaTransactionRunners.current().runStream(entityManager, () -> JpaQueryExecutor.exec(
+        return JpaTransactionRunners.installed().runStream(entityManager, () -> JpaQueryExecutor.exec(
             entityManager,
             JpaCriteria.of(projectionClass),
             JpaSource.root(entityClass),
@@ -212,7 +222,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
             filtered(ownerPredicate(ownerId).and(searchPredicate(search, query))),
             groupBy(),
             JpaOrder.by(sort),
-            JpaResult.<PROJECTION>stream().addHints(getQueryHints())
+            new JpaResultHints<>(JpaResult.stream(), getQueryHints())
         )).map(projection -> mapOutput(ownerId, projection));
     }
 
@@ -220,14 +230,17 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     public OUTPUT find(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundEntityException {
         var projection = JpaQueryExecutor.exec(
             entityManager,
-            new FindQuery<>(
-                projectionClass,
-                JpaSource.root(entityClass),
-                selection(),
-                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
-                groupBy(),
-                () -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new FindQuery<>(
+                    projectionClass,
+                    JpaSource.root(entityClass),
+                    selection(),
+                    filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
+                    groupBy(),
+                    NotFoundEntityException.supplier(entityClass, new OwnedId<>(ownerId, id))
+                ),
+                getQueryHints()
+            )
         );
         return mapOutput(ownerId, projection);
     }
@@ -236,10 +249,13 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     public long count(@NotNull OWNER_ID ownerId, @Nullable String search, @Nullable String query) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityCountQuery<>(
-                entityClass,
-                filtered(ownerPredicate(ownerId).and(searchPredicate(search, query)))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityCountQuery<>(
+                    entityClass,
+                    filtered(ownerPredicate(ownerId).and(searchPredicate(search, query)))
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -247,10 +263,13 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     public boolean exists(@NotNull OWNER_ID ownerId, @NotNull ID id) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityExistsQuery<>(
-                entityClass,
-                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id)))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityExistsQuery<>(
+                    entityClass,
+                    filtered(ownerPredicate(ownerId).and(buildIdPredicate(id)))
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -267,6 +286,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
      */
     @Override
     public OUTPUT create(@NotNull OWNER_ID ownerId, @NotNull @Valid INPUT input) throws NotFoundException {
+        ReadOnlyProvider.rejectWrite(this);
         return withTransaction(() -> {
             var entity = newEntity();
 
@@ -292,6 +312,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
      */
     @Override
     public OUTPUT update(@NotNull OWNER_ID ownerId, @NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException {
+        ReadOnlyProvider.rejectWrite(this);
         return withTransaction(() -> {
             var entity = loadForMutation(ownerId, id);
 
@@ -313,6 +334,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
      */
     @Override
     public void delete(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundException {
+        ReadOnlyProvider.rejectWrite(this);
         withTransaction(() -> {
             var entity = loadForMutation(ownerId, id);
 
@@ -493,11 +515,14 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
     protected ENTITY loadForMutation(OWNER_ID ownerId, ID id) throws NotFoundEntityException {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityFindQuery<>(
-                entityClass,
-                filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
-                () -> new NotFoundEntityException(entityClass, new OwnedId<>(ownerId, id))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityFindQuery<>(
+                    entityClass,
+                    filtered(ownerPredicate(ownerId).and(buildIdPredicate(id))),
+                    NotFoundEntityException.supplier(entityClass, new OwnedId<>(ownerId, id))
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -563,7 +588,7 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
      * Executes the given function within a JPA transaction managed by the entity manager.
      */
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaTransactionRunners.current().run(entityManager, function);
+        return JpaTransactionRunners.installed().run(entityManager, function);
     }
 
     // ------------------------------------------------------------
@@ -599,5 +624,41 @@ public abstract class JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJEC
      */
     protected void afterUpdate(OWNER_ID ownerId, INPUT input, ENTITY updated) {
         // Subclasses may override
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, OWNER_ID, ID, PROJECTION, OUTPUT> extends JpaOwnedProjectedCrudProvider<ENTITY, OWNER_ID, ID, PROJECTION, Void, OUTPUT> implements ReadOnlyProvider {
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass, Class<PROJECTION> projectionClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityManager, searchPredicateBuilder, entityClass, projectionClass, events);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass, Class<PROJECTION> projectionClass) {
+            super(entityManager, searchPredicateBuilder, entityClass, projectionClass);
+        }
+
+        public ReadOnly(EntityManager entityManager, Class<ENTITY> entityClass, Class<PROJECTION> projectionClass) {
+            super(entityManager, entityClass, projectionClass);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityManager, searchPredicateBuilder, events);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder) {
+            super(entityManager, searchPredicateBuilder);
+        }
+
+        public ReadOnly(EntityManager entityManager) {
+            super(entityManager);
+        }
+
+        @Override
+        protected final void mapInput(OWNER_ID ownerId, Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

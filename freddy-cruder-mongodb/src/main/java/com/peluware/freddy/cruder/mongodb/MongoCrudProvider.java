@@ -7,6 +7,8 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import org.bson.codecs.pojo.annotations.BsonId;
@@ -158,5 +160,33 @@ public abstract class MongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends Entit
      */
     protected ID extractId(ENTITY entity) {
         return MongoUtils.extractId(entityClass, entity);
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, ID, OUTPUT> extends MongoCrudProvider<ENTITY, ID, Void, OUTPUT> implements ReadOnlyProvider {
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(mongoDatabase, searchFilterBuilder, entityClass, events);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, Class<ENTITY> entityClass) {
+            super(mongoDatabase, searchFilterBuilder, entityClass);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(mongoDatabase, searchFilterBuilder, events);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder) {
+            super(mongoDatabase, searchFilterBuilder);
+        }
+
+        @Override
+        protected final void mapInput(Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

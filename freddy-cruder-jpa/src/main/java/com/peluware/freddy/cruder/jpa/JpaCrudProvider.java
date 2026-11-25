@@ -4,6 +4,8 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
@@ -12,11 +14,14 @@ import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.EntityListQuery;
 import com.peluware.freddy.cruder.jpa.query.JpaOrder;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
+import com.peluware.freddy.cruder.jpa.query.JpaQueryHints;
 import com.peluware.freddy.cruder.jpa.query.JpaResult;
+import com.peluware.freddy.cruder.jpa.query.JpaResultHints;
 import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -134,12 +139,12 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
     // ------------------------------------------------------------
 
     /**
-     * Finds an entity by its identifier or throws {@link NotFoundEntityException} if not found.
+     * Finds an entity by its identifier, applying {@link #getQueryHints()} as the find properties, or
+     * throws {@link NotFoundEntityException} if not found.
      */
     @Override
-    @SuppressWarnings("ConstantConditions")
     protected ENTITY internalFind(ID id) throws NotFoundEntityException {
-        ENTITY entity = entityManager.find(entityClass, id);
+        ENTITY entity = entityManager.<@Nullable ENTITY>find(entityClass, id, getQueryHints());
         if (entity == null) {
             throw new NotFoundEntityException(entityClass, id);
         }
@@ -154,11 +159,14 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
     protected Page<ENTITY> internalPage(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var content = JpaQueryExecutor.exec(
             entityManager,
-            new EntityListQuery<>(
-                entityClass,
-                searchPredicate(search, query),
-                sort,
-                pagination
+            new JpaQueryHints<>(
+                new EntityListQuery<>(
+                    entityClass,
+                    searchPredicate(search, query),
+                    sort,
+                    pagination
+                ),
+                getQueryHints()
             )
         );
         return Page.deferred(
@@ -176,10 +184,13 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
     protected List<ENTITY> internalList(@Nullable String search, @Nullable String query, Sort sort) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityListQuery<>(
-                entityClass,
-                searchPredicate(search, query),
-                sort
+            new JpaQueryHints<>(
+                new EntityListQuery<>(
+                    entityClass,
+                    searchPredicate(search, query),
+                    sort
+                ),
+                getQueryHints()
             )
         );
     }
@@ -191,12 +202,12 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
-        return JpaTransactionRunners.current().runStream(entityManager, () -> JpaQueryExecutor.exec(
+        return JpaTransactionRunners.installed().runStream(entityManager, () -> JpaQueryExecutor.exec(
             entityManager,
             entityClass,
             searchPredicate(search, query),
             JpaOrder.by(sort),
-            JpaResult.stream()
+            new JpaResultHints<>(JpaResult.stream(), getQueryHints())
         ));
     }
 
@@ -207,9 +218,12 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
     protected long internalCount(@Nullable String search, @Nullable String query) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityCountQuery<>(
-                entityClass,
-                searchPredicate(search, query)
+            new JpaQueryHints<>(
+                new EntityCountQuery<>(
+                    entityClass,
+                    searchPredicate(search, query)
+                ),
+                getQueryHints()
             )
         );
     }
@@ -221,9 +235,12 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
     protected boolean internalExists(ID id) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityExistsQuery<>(
-                entityClass,
-                buildIdPredicate(id)
+            new JpaQueryHints<>(
+                new EntityExistsQuery<>(
+                    entityClass,
+                    buildIdPredicate(id)
+                ),
+                getQueryHints()
             )
         );
     }
@@ -258,11 +275,32 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     @Override
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaTransactionRunners.current().run(entityManager, function);
+        return JpaTransactionRunners.installed().run(entityManager, function);
     }
 
     protected JpaPredicate<ENTITY> buildIdPredicate(ID id) {
         return JpaPredicate.byId(entityManager.getMetamodel(), id);
+    }
+
+    /**
+     * Returns JPA query hints to apply to every read executed by this provider, including
+     * {@link EntityManager#find(Class, Object, java.util.Map) find}, which takes them as its properties.
+     *
+     * <p>
+     * The default implementation returns an empty map. Subclasses may override to add hints such as
+     * a fetch graph, cache control, fetch size or query timeout (see
+     * {@link com.peluware.freddy.cruder.jpa.query.JpaHints}).
+     * </p>
+     *
+     * <p>
+     * In {@code find}, hints that only apply to queries (such as a query timeout) are ignored, and
+     * none apply if the entity is already in the persistence context.
+     * </p>
+     *
+     * @return a map of JPA query hints
+     */
+    protected Map<String, Object> getQueryHints() {
+        return Map.of();
     }
 
     /**
@@ -274,5 +312,41 @@ public abstract class JpaCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends EntityC
      */
     protected JpaPredicate<ENTITY> searchPredicate(@Nullable String search, @Nullable String query) {
         return searchPredicateBuilder.bind(entityManager.getMetamodel(), search, query);
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, ID, OUTPUT> extends JpaCrudProvider<ENTITY, ID, Void, OUTPUT> implements ReadOnlyProvider {
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityManager, searchPredicateBuilder, entityClass, events);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass) {
+            super(entityManager, searchPredicateBuilder, entityClass);
+        }
+
+        public ReadOnly(EntityManager entityManager, Class<ENTITY> entityClass) {
+            super(entityManager, entityClass);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityManager, searchPredicateBuilder, events);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder) {
+            super(entityManager, searchPredicateBuilder);
+        }
+
+        public ReadOnly(EntityManager entityManager) {
+            super(entityManager);
+        }
+
+        @Override
+        protected final void mapInput(Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

@@ -27,8 +27,8 @@ public interface JpaTransactionRunner {
 
     /**
      * Honors an already-active transaction; otherwise opens and manages a resource-local
-     * {@link jakarta.persistence.EntityTransaction} directly on {@code entityManager}. See
-     * {@link JpaUtils#requireTransaction} and {@link JpaUtils#requireTransactionStream}.
+     * {@link jakarta.persistence.EntityTransaction} directly on {@code entityManager}; a JTA-managed
+     * entity manager runs the operation directly, leaving the boundary to the JTA coordinator.
      */
     static JpaTransactionRunner resourceLocal() {
         return ResourceLocalJpaTransactionRunner.INSTANCE;

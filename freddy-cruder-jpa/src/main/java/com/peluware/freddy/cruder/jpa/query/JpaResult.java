@@ -5,14 +5,13 @@ import jakarta.persistence.NonUniqueResultException;
 import jakarta.persistence.TypedQuery;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
  * Executes a query and materializes its result — {@link #list}, {@link #single}, {@link #first},
- * {@link #exists}, {@link #stream}, and so on. Apply query hints with {@link #addHints}.
+ * {@link #exists}, {@link #stream}, and so on. Wrap it in {@link JpaResultHints} to set query hints.
  *
  * @param <RESULT> the row type of the query
  * @param <RETURN> the value produced from the query
@@ -22,19 +21,12 @@ public interface JpaResult<RESULT, RETURN> {
 
     RETURN result(TypedQuery<RESULT> query);
 
-    default JpaResult<RESULT, RETURN> addHints(Map<String, Object> hints) {
-        return query -> {
-            hints.forEach(query::setHint);
-            return result(query);
-        };
-    }
-
     static <RESULT> JpaResult<RESULT, List<RESULT>> list(Pagination pagination) {
         return query -> {
 
             if (pagination.isPaginated()) {
                 query
-                    .setFirstResult(pagination.getNumber() * pagination.getSize())
+                    .setFirstResult(Math.multiplyExact(pagination.getNumber(), pagination.getSize()))
                     .setMaxResults(pagination.getSize());
             }
 

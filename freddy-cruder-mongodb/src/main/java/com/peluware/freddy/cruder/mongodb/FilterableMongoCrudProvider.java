@@ -7,6 +7,8 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import org.bson.codecs.pojo.annotations.BsonId;
@@ -121,17 +123,16 @@ public abstract class FilterableMongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> ext
     }
 
     /**
-     * Applies a global filter to every read query. The default returns the original filter unchanged.
-     * Override to inject cross-cutting conditions such as:
+     * Applies a global filter to every read query, for cross-cutting conditions such as:
      *
      * <ul>
      *   <li>Soft-delete: {@code Filters.and(original, Filters.ne("deleted", true))}</li>
      *   <li>Multi-tenant: {@code Filters.and(original, Filters.eq("tenantId", currentTenant()))}</li>
      * </ul>
+     *
+     * <p>A provider with nothing to filter should extend {@link MongoCrudProvider} instead.</p>
      */
-    protected Bson filterFilter(Bson original) {
-        return original;
-    }
+    protected abstract Bson filterFilter(Bson original);
 
     // ------------------------------------------------------------
     // INTERNAL CRUD IMPLEMENTATIONS
@@ -209,5 +210,33 @@ public abstract class FilterableMongoCrudProvider<ENTITY, ID, INPUT, OUTPUT> ext
      */
     protected ID extractId(ENTITY entity) {
         return MongoUtils.extractId(entityClass, entity);
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, ID, OUTPUT> extends FilterableMongoCrudProvider<ENTITY, ID, Void, OUTPUT> implements ReadOnlyProvider {
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(mongoDatabase, searchFilterBuilder, entityClass, events);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, Class<ENTITY> entityClass) {
+            super(mongoDatabase, searchFilterBuilder, entityClass);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(mongoDatabase, searchFilterBuilder, events);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder) {
+            super(mongoDatabase, searchFilterBuilder);
+        }
+
+        @Override
+        protected final void mapInput(Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

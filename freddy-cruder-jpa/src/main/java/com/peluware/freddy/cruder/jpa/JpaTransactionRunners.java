@@ -7,7 +7,7 @@ import java.util.Objects;
  */
 public final class JpaTransactionRunners {
 
-    private static volatile JpaTransactionRunner current = JpaTransactionRunner.resourceLocal();
+    private static volatile JpaTransactionRunner runner = JpaTransactionRunner.resourceLocal();
 
     private JpaTransactionRunners() {
     }
@@ -16,14 +16,14 @@ public final class JpaTransactionRunners {
      * @return the currently installed runner, or {@link JpaTransactionRunner#resourceLocal()} if
      * nothing called {@link #install}
      */
-    public static JpaTransactionRunner current() {
-        return current;
+    public static JpaTransactionRunner installed() {
+        return runner;
     }
 
     /**
-     * Replaces the runner returned by {@link #current()} from now on.
+     * Replaces the runner returned by {@link #installed()} from now on.
      */
     public static void install(JpaTransactionRunner runner) {
-        current = Objects.requireNonNull(runner, "runner must not be null");
+        JpaTransactionRunners.runner = Objects.requireNonNull(runner, "runner must not be null");
     }
 }

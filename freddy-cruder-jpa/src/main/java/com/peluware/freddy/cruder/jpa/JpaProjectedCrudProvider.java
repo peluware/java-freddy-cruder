@@ -7,6 +7,8 @@ import com.peluware.freddy.cruder.CrudProvider;
 import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.ListProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import com.peluware.freddy.cruder.StreamProvider;
 import com.peluware.freddy.cruder.jpa.query.EntityCountQuery;
 import com.peluware.freddy.cruder.jpa.query.EntityExistsQuery;
@@ -17,7 +19,9 @@ import com.peluware.freddy.cruder.jpa.query.JpaGroupBy;
 import com.peluware.freddy.cruder.jpa.query.JpaOrder;
 import com.peluware.freddy.cruder.jpa.query.JpaPredicate;
 import com.peluware.freddy.cruder.jpa.query.JpaQueryExecutor;
+import com.peluware.freddy.cruder.jpa.query.JpaQueryHints;
 import com.peluware.freddy.cruder.jpa.query.JpaResult;
+import com.peluware.freddy.cruder.jpa.query.JpaResultHints;
 import com.peluware.freddy.cruder.jpa.query.JpaSelection;
 import com.peluware.freddy.cruder.jpa.query.JpaSource;
 import com.peluware.freddy.cruder.jpa.query.ListQuery;
@@ -170,15 +174,18 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
     public Page<OUTPUT> page(@Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
         var content = JpaQueryExecutor.exec(
             entityManager,
-            new ListQuery<>(
-                projectionClass,
-                JpaSource.root(entityClass),
-                selection(),
-                filtered(searchPredicate(search, query)),
-                groupBy(),
-                sort,
-                pagination
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new ListQuery<>(
+                    projectionClass,
+                    JpaSource.root(entityClass),
+                    selection(),
+                    filtered(searchPredicate(search, query)),
+                    groupBy(),
+                    sort,
+                    pagination
+                ),
+                getQueryHints()
+            )
         );
         var mapped = content.stream().map(this::mapOutput).toList();
         return Page.deferred(mapped, pagination, sort, () -> count(search, query));
@@ -188,15 +195,18 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
     public List<OUTPUT> list(@Nullable String search, @Nullable String query, Sort sort) {
         var content = JpaQueryExecutor.exec(
             entityManager,
-            new ListQuery<>(
-                projectionClass,
-                JpaSource.root(entityClass),
-                selection(),
-                filtered(searchPredicate(search, query)),
-                groupBy(),
-                sort,
-                Pagination.unpaginated()
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new ListQuery<>(
+                    projectionClass,
+                    JpaSource.root(entityClass),
+                    selection(),
+                    filtered(searchPredicate(search, query)),
+                    groupBy(),
+                    sort,
+                    Pagination.unpaginated()
+                ),
+                getQueryHints()
+            )
         );
         return content.stream().map(this::mapOutput).toList();
     }
@@ -209,7 +219,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      */
     @Override
     public Stream<OUTPUT> stream(@Nullable String search, @Nullable String query, Sort sort) {
-        return JpaTransactionRunners.current().runStream(entityManager, () -> JpaQueryExecutor.exec(
+        return JpaTransactionRunners.installed().runStream(entityManager, () -> JpaQueryExecutor.exec(
             entityManager,
             JpaCriteria.of(projectionClass),
             JpaSource.root(entityClass),
@@ -217,7 +227,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
             filtered(searchPredicate(search, query)),
             groupBy(),
             JpaOrder.by(sort),
-            JpaResult.<PROJECTION>stream().addHints(getQueryHints())
+            new JpaResultHints<>(JpaResult.stream(), getQueryHints())
         )).map(this::mapOutput);
     }
 
@@ -225,14 +235,17 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
     public OUTPUT find(@NotNull ID id) throws NotFoundEntityException {
         var projection = JpaQueryExecutor.exec(
             entityManager,
-            new FindQuery<>(
-                projectionClass,
-                JpaSource.root(entityClass),
-                selection(),
-                filtered(buildIdPredicate(id)),
-                groupBy(),
-                () -> new NotFoundEntityException(entityClass, id)
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new FindQuery<>(
+                    projectionClass,
+                    JpaSource.root(entityClass),
+                    selection(),
+                    filtered(buildIdPredicate(id)),
+                    groupBy(),
+                    NotFoundEntityException.supplier(entityClass, id)
+                ),
+                getQueryHints()
+            )
         );
         return mapOutput(projection);
     }
@@ -241,10 +254,13 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
     public long count(@Nullable String search, @Nullable String query) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityCountQuery<>(
-                entityClass,
-                filtered(searchPredicate(search, query))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityCountQuery<>(
+                    entityClass,
+                    filtered(searchPredicate(search, query))
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -252,10 +268,13 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
     public boolean exists(@NotNull ID id) {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityExistsQuery<>(
-                entityClass,
-                filtered(buildIdPredicate(id))
-            ).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityExistsQuery<>(
+                    entityClass,
+                    filtered(buildIdPredicate(id))
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -272,6 +291,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      */
     @Override
     public OUTPUT create(@NotNull @Valid INPUT input) {
+        ReadOnlyProvider.rejectWrite(this);
         return withTransaction(() -> {
             var entity = newEntity();
 
@@ -296,6 +316,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      */
     @Override
     public OUTPUT update(@NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundEntityException {
+        ReadOnlyProvider.rejectWrite(this);
         return withTransaction(() -> {
             var entity = loadForMutation(id);
 
@@ -317,6 +338,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      */
     @Override
     public void delete(@NotNull ID id) throws NotFoundEntityException {
+        ReadOnlyProvider.rejectWrite(this);
         withTransaction(() -> {
             var entity = loadForMutation(id);
 
@@ -462,7 +484,14 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
     protected ENTITY loadForMutation(ID id) throws NotFoundEntityException {
         return JpaQueryExecutor.exec(
             entityManager,
-            new EntityFindQuery<>(entityClass, filtered(buildIdPredicate(id)), () -> new NotFoundEntityException(entityClass, id)).addHints(getQueryHints())
+            new JpaQueryHints<>(
+                new EntityFindQuery<>(
+                    entityClass,
+                    filtered(buildIdPredicate(id)),
+                    NotFoundEntityException.supplier(entityClass, id)
+                ),
+                getQueryHints()
+            )
         );
     }
 
@@ -519,7 +548,7 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      * Executes the given function within a JPA transaction managed by the entity manager.
      */
     protected <T> T withTransaction(Supplier<T> function) {
-        return JpaTransactionRunners.current().run(entityManager, function);
+        return JpaTransactionRunners.installed().run(entityManager, function);
     }
 
     // ------------------------------------------------------------
@@ -553,5 +582,41 @@ public abstract class JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, INPUT, OU
      */
     protected void afterUpdate(INPUT input, ENTITY updated) {
         // Subclasses may override
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, ID, PROJECTION, OUTPUT> extends JpaProjectedCrudProvider<ENTITY, ID, PROJECTION, Void, OUTPUT> implements ReadOnlyProvider {
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass, Class<PROJECTION> projectionClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityManager, searchPredicateBuilder, entityClass, projectionClass, events);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, Class<ENTITY> entityClass, Class<PROJECTION> projectionClass) {
+            super(entityManager, searchPredicateBuilder, entityClass, projectionClass);
+        }
+
+        public ReadOnly(EntityManager entityManager, Class<ENTITY> entityClass, Class<PROJECTION> projectionClass) {
+            super(entityManager, entityClass, projectionClass);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityManager, searchPredicateBuilder, events);
+        }
+
+        public ReadOnly(EntityManager entityManager, SearchPredicateBuilder searchPredicateBuilder) {
+            super(entityManager, searchPredicateBuilder);
+        }
+
+        public ReadOnly(EntityManager entityManager) {
+            super(entityManager);
+        }
+
+        @Override
+        protected final void mapInput(Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

@@ -7,6 +7,8 @@ import com.peluware.domain.Page;
 import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
 import com.peluware.freddy.cruder.OwnedEntityCrudProvider;
 import com.peluware.freddy.cruder.OwnedId;
@@ -123,8 +125,7 @@ public abstract class FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INP
     }
 
     /**
-     * Applies a global filter to every read query. The default returns the original filter unchanged.
-     * Override to inject cross-cutting conditions such as:
+     * Applies a global filter to every read query, for cross-cutting conditions such as:
      *
      * <ul>
      *   <li>Soft-delete: {@code Filters.and(original, Filters.ne("deleted", true))}</li>
@@ -133,9 +134,7 @@ public abstract class FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INP
      *
      * <p>The {@code original} filter already includes the owner constraint from {@link #buildOwnerFilter}.</p>
      */
-    protected Bson filterFilter(Bson original) {
-        return original;
-    }
+    protected abstract Bson filterFilter(Bson original);
 
     /**
      * Builds a filter that restricts queries to documents belonging to the given owner.
@@ -225,5 +224,33 @@ public abstract class FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, INP
      */
     protected ID extractId(ENTITY entity) {
         return MongoUtils.extractId(entityClass, entity);
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, OWNER_ID, ID, OUTPUT> extends FilterableOwnedMongoCrudProvider<ENTITY, OWNER_ID, ID, Void, OUTPUT> implements ReadOnlyProvider {
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(mongoDatabase, searchFilterBuilder, entityClass, events);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, Class<ENTITY> entityClass) {
+            super(mongoDatabase, searchFilterBuilder, entityClass);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(mongoDatabase, searchFilterBuilder, events);
+        }
+
+        public ReadOnly(MongoDatabase mongoDatabase, SearchFilterBuilder searchFilterBuilder) {
+            super(mongoDatabase, searchFilterBuilder);
+        }
+
+        @Override
+        protected final void mapInput(OWNER_ID ownerId, Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

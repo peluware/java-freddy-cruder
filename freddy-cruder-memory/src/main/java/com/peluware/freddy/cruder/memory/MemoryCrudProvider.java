@@ -6,11 +6,14 @@ import com.peluware.domain.Sort;
 import com.peluware.freddy.cruder.EntityCrudEvents;
 import com.peluware.freddy.cruder.EntityCrudProvider;
 import com.peluware.freddy.cruder.NotFoundEntityException;
+import com.peluware.freddy.cruder.ReadOnlyException;
+import com.peluware.freddy.cruder.ReadOnlyProvider;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * An {@link EntityCrudProvider} that keeps its entities in memory.
@@ -146,6 +149,11 @@ public abstract class MemoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends Enti
     }
 
     @Override
+    protected Stream<ENTITY> internalStream(@Nullable String search, @Nullable String query, Sort sort) {
+        return internalList(search, query, sort).stream();
+    }
+
+    @Override
     protected long internalCount(@Nullable String search, @Nullable String query) {
         return store.all().stream().filter(searchPredicate(search, query)).count();
     }
@@ -183,5 +191,33 @@ public abstract class MemoryCrudProvider<ENTITY, ID, INPUT, OUTPUT> extends Enti
      */
     protected Predicate<ENTITY> searchPredicate(@Nullable String search, @Nullable String query) {
         return _ -> true;
+    }
+
+    /**
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
+     */
+    public abstract static class ReadOnly<ENTITY, ID, OUTPUT> extends MemoryCrudProvider<ENTITY, ID, Void, OUTPUT> implements ReadOnlyProvider {
+
+        protected ReadOnly(MemoryIds<ENTITY, ID> ids, Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(ids, entityClass, events);
+        }
+
+        protected ReadOnly(MemoryIds<ENTITY, ID> ids, Class<ENTITY> entityClass) {
+            super(ids, entityClass);
+        }
+
+        protected ReadOnly(MemoryIds<ENTITY, ID> ids, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(ids, events);
+        }
+
+        protected ReadOnly(MemoryIds<ENTITY, ID> ids) {
+            super(ids);
+        }
+
+        @Override
+        protected final void mapInput(Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

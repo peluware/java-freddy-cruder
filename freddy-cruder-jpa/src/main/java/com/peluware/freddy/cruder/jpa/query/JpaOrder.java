@@ -7,11 +7,13 @@ import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.metamodel.Metamodel;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
  * Builds the {@code ORDER BY} clause of a Criteria query. Build one from a domain {@link Sort}
- * with {@link #by(Sort)}, or {@link #unsorted()} for none.
+ * with {@link #by(Sort)}, from domain orders with {@link #by(Collection)}, or {@link #unsorted()}
+ * for none.
  *
  * @param <SELECTED> the entity type of the query source
  */
@@ -29,6 +31,18 @@ public interface JpaOrder<SELECTED> {
      */
     static <SELECTED> JpaOrder<SELECTED> by(Sort sort) {
         return (from, cb, metamodel) -> JpaUtils.getOrders(sort, from, cb, metamodel);
+    }
+
+    /**
+     * Orders by the given domain orders, in the order given, resolving property paths via the
+     * metamodel. Same as {@link #by(Sort)} on a {@link Sort} built from {@code orders}.
+     *
+     * @param orders the domain orders to sort by
+     * @param <SELECTED> the entity type of the query source
+     * @return an order that maps {@code orders} to Criteria {@link Order}s
+     */
+    static <SELECTED> JpaOrder<SELECTED> by(Collection<com.peluware.domain.Order> orders) {
+        return by(Sort.by(orders));
     }
 
     /**

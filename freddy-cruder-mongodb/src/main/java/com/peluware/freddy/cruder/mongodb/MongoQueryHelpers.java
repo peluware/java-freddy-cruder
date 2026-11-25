@@ -8,10 +8,7 @@ import com.peluware.domain.Pagination;
 import com.peluware.domain.Sort;
 import org.bson.conversions.Bson;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -41,10 +38,10 @@ public final class MongoQueryHelpers {
         }
         if (pagination.isPaginated()) {
             iterable = iterable
-                .skip(pagination.getNumber() * pagination.getSize())
+                .skip(Math.multiplyExact(pagination.getNumber(), pagination.getSize()))
                 .limit(pagination.getSize());
         }
-        return iterable.into(new ArrayList<>());
+        return Collections.unmodifiableList(iterable.into(new ArrayList<>()));
     }
 
     /**

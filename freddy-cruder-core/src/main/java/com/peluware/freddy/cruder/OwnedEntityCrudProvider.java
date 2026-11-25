@@ -123,7 +123,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
         preProcess(CrudOperation.PAGE);
 
         var normalized = StringUtils.normalize(search);
-        var page = resolvePage(ownerId, normalized, query, pagination, sort);
+        var page = internalPage(ownerId, normalized, query, pagination, sort);
 
         events.onPage(page);
         page.getContent().forEach(events::eachEntity);
@@ -145,7 +145,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
         preProcess(CrudOperation.LIST);
 
         var normalized = StringUtils.normalize(search);
-        var content = resolveList(ownerId, normalized, query, sort);
+        var content = internalList(ownerId, normalized, query, sort);
 
         content.forEach(events::eachEntity);
 
@@ -168,7 +168,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
         preProcess(CrudOperation.STREAM);
 
         var normalized = StringUtils.normalize(search);
-        return resolveStream(ownerId, normalized, query, sort)
+        return internalStream(ownerId, normalized, query, sort)
             .onClose(() -> postProcess(CrudOperation.STREAM))
             .peek(events::eachEntity)
             .map(entity -> mapOutput(ownerId, entity));
@@ -208,7 +208,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
         preProcess(CrudOperation.COUNT);
 
         var normalized = StringUtils.normalize(search);
-        var count = resolveCount(ownerId, normalized, query);
+        var count = internalCount(ownerId, normalized, query);
 
         events.onCount(count);
 
@@ -254,6 +254,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      */
     @Override
     public OUTPUT create(@NotNull OWNER_ID ownerId, @NotNull @Valid INPUT input) throws NotFoundException {
+        ReadOnlyProvider.rejectWrite(this);
         preProcess(CrudOperation.CREATE);
 
         var result = withTransaction(() -> {
@@ -292,6 +293,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      */
     @Override
     public OUTPUT update(@NotNull OWNER_ID ownerId, @NotNull ID id, @NotNull @Valid INPUT input) throws NotFoundException {
+        ReadOnlyProvider.rejectWrite(this);
         preProcess(CrudOperation.UPDATE);
 
         var result = withTransaction(() -> {
@@ -328,6 +330,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      */
     @Override
     public void delete(@NotNull OWNER_ID ownerId, @NotNull ID id) throws NotFoundException {
+        ReadOnlyProvider.rejectWrite(this);
         preProcess(CrudOperation.DELETE);
 
         withTransaction(() -> {
@@ -410,10 +413,9 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
     /**
      * Every entity belonging to the given owner, lazily.
      *
-     * <p>The default implementation delegates to {@link #internalList} and streams its result —
-     * correct, but not lazy: everything is loaded before the first element is handed out. Override
-     * it for a store that can read entities one at a time (a JPA cursor, a Mongo cursor) without
-     * collecting them into a {@link List} first.</p>
+     * <p>A store that can read entities one at a time (a JPA cursor, a Mongo cursor) should do so
+     * without collecting them into a {@link List} first; one that cannot may stream the result of
+     * {@link #internalList}.</p>
      *
      * @param ownerId the identifier of the owning resource
      * @param search  normalized search string
@@ -421,9 +423,7 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
      * @param sort    sorting configuration
      * @return every matching entity belonging to the owner, lazily
      */
-    protected Stream<ENTITY> internalStream(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
-        return internalList(ownerId, search, query, sort).stream();
-    }
+    protected abstract Stream<ENTITY> internalStream(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort);
 
     /**
      * Counts entities belonging to the given owner matching optional filters.
@@ -573,36 +573,30 @@ public abstract class OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, INPUT, OUTPU
     }
 
     /**
-     * Processes the raw query string before use.
-     *
-     * @param query the raw query string
-     * @return the processed query string
+     * Read-only variant: {@code create}, {@code update} and {@code delete} throw
+     * {@link ReadOnlyException}, and there is no input to map.
      */
-    protected @Nullable String applyQueryPolicies(OWNER_ID ownerId, @Nullable String query) {
-        return query;
-    }
+    public abstract static class ReadOnly<ENTITY, OWNER_ID, ID, OUTPUT> extends OwnedEntityCrudProvider<ENTITY, OWNER_ID, ID, Void, OUTPUT> implements ReadOnlyProvider {
 
-    // ------------------------------------------------------------
-    // PRIVATE HELPERS
-    // ------------------------------------------------------------
+        protected ReadOnly(Class<ENTITY> entityClass, EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(entityClass, events);
+        }
 
-    private Page<ENTITY> resolvePage(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Pagination pagination, Sort sort) {
-        var newQuery = applyQueryPolicies(ownerId, query);
-        return internalPage(ownerId, search, newQuery, pagination, sort);
-    }
+        protected ReadOnly(Class<ENTITY> entityClass) {
+            super(entityClass);
+        }
 
-    private List<ENTITY> resolveList(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
-        var newQuery = applyQueryPolicies(ownerId, query);
-        return internalList(ownerId, search, newQuery, sort);
-    }
+        protected ReadOnly(EntityCrudEvents<ENTITY, ID, Void> events) {
+            super(events);
+        }
 
-    private Stream<ENTITY> resolveStream(OWNER_ID ownerId, @Nullable String search, @Nullable String query, Sort sort) {
-        var newQuery = applyQueryPolicies(ownerId, query);
-        return internalStream(ownerId, search, newQuery, sort);
-    }
+        protected ReadOnly() {
+            super();
+        }
 
-    private long resolveCount(OWNER_ID ownerId, @Nullable String search, @Nullable String query) {
-        var newQuery = applyQueryPolicies(ownerId, query);
-        return internalCount(ownerId, search, newQuery);
+        @Override
+        protected final void mapInput(OWNER_ID ownerId, Void input, ENTITY entity, boolean isNew) {
+            throw new ReadOnlyException(getClass());
+        }
     }
 }

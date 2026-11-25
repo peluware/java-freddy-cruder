@@ -6,6 +6,156 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ---
 
+## [5.0.0] — 2026-11-24
+
+Rehace cómo las consultas JPA reciben hints y cómo se ejecuta una transacción, y vuelve obligatorio
+el filtro de los providers `Filterable*`. Suma además ayudas tipadas para joins y predicados, un
+gancho de hints en `find`, y actualiza las dependencias.
+
+### Por qué 5.0.0
+
+- `addHints` se elimina de `JpaQuery` y `JpaResult`.
+- `JpaUtils.requireTransaction`/`requireTransactionStream` se eliminan.
+- `JpaTransactionRunners.current()` pasa a ser `installed()`.
+- `predicateFilter()` (JPA) y `filterFilter(Bson)` (MongoDB) pasan a ser abstractos en los providers
+  `Filterable*`.
+- `internalStream` pasa a ser abstracto en `EntityCrudProvider` y `OwnedEntityCrudProvider`.
+- `applyQueryPolicies` se elimina de `EntityCrudProvider` y `OwnedEntityCrudProvider`.
+
+### Añadido
+
+#### `freddy-cruder-core`
+
+- `ReadOnlyProvider` — una interfaz marcadora: un provider que la implementa rechaza `create`,
+  `update` y `delete` con `ReadOnlyException` (una `UnsupportedOperationException`) en lugar de
+  ejecutarlos. Aplica a `EntityCrudProvider`, `OwnedEntityCrudProvider`, `JpaProjectedCrudProvider` y
+  `JpaOwnedProjectedCrudProvider`.
+- Una clase anidada `ReadOnly` en cada provider (`EntityCrudProvider`, `OwnedEntityCrudProvider`, `JpaCrudProvider`, `FilterableJpaCrudProvider`,
+  `FilterableOwnedJpaCrudProvider`, `JpaProjectedCrudProvider`, `JpaOwnedProjectedCrudProvider`,
+  `MongoCrudProvider`, `FilterableMongoCrudProvider`, `FilterableOwnedMongoCrudProvider`,
+  `MemoryCrudProvider`, `OwnedMemoryCrudProvider` y `SpringRepositoryCrudProvider`): un
+  `ReadOnlyProvider` con `Void` como input y `mapInput` ya implementado, de modo que un servicio de
+  solo lectura es simplemente `extends FilterableJpaCrudProvider.ReadOnly<Product, Long, ProductOutput>`.
+- `NotFoundEntityException.supplier(entityClass, id)` — un `Supplier` de la excepción, para las APIs
+  que reciben uno, como `EntityFindQuery`.
+
+#### `freddy-cruder-jpa`
+
+- `JpaQueryHints` y `JpaResultHints` — envuelven un `JpaQuery`/`JpaResult` y fijan los hints dados
+  antes de delegar: `new JpaQueryHints<>(query, JpaHints.fetchGraph(graph))`.
+- `JpaCrudProvider.getQueryHints()` — hints que se aplican a toda lectura del provider. `find` los
+  pasa como propiedades de `EntityManager.find`, por lo que un hint pensado solo para consultas (como
+  un timeout de consulta) se ignora ahí, y ninguno se aplica si la entidad ya está en el contexto de
+  persistencia.
+- Sobrecargas de `JpaUtils.getOrCreateJoin` para `SingularAttribute`, `ListAttribute`, `SetAttribute`,
+  `CollectionAttribute` y `MapAttribute`, que devuelven un join tipado con el atributo. Se reutiliza
+  un join existente sobre el mismo atributo y tipo de join.
+- `JpaPredicate.eq(SingularAttribute, valor)` (un valor `null` coincide con `IS NULL`),
+  `JpaPredicate.in(SingularAttribute, Collection)` (una colección vacía no coincide con nada) y
+  `JpaPredicate.isTrue(SingularAttribute)`.
+- `JpaOrder.by(Collection<Order>)`.
+
+### Cambiado
+
+- `JpaTransactionRunners.current()` se renombra `installed()`.
+- `ResourceLocalJpaTransactionRunner` ahora contiene la lógica de transacción. Cuando una operación
+  lanza ella misma `IllegalStateException`, ya no se ejecuta una segunda vez fuera de la transacción.
+- `FilterableJpaCrudProvider.predicateFilter()` y `FilterableOwnedJpaCrudProvider.predicateFilter()`
+  son `abstract` (devolvían `JpaPredicate.all()`). Un provider sin nada que filtrar debe extender
+  `JpaCrudProvider`.
+- `FilterableMongoCrudProvider.filterFilter(Bson)` y
+  `FilterableOwnedMongoCrudProvider.filterFilter(Bson)` son `abstract` (devolvían el filtro sin
+  cambios). Un provider sin nada que filtrar debe extender `MongoCrudProvider`.
+- `EntityCrudProvider.internalStream` y `OwnedEntityCrudProvider.internalStream` son `abstract`
+  (devolvían el resultado de `internalList` como stream). Los providers JPA, MongoDB, de memoria y de
+  Spring Data de esta librería ya lo implementan.
+- `JpaCrudProvider.find` aplica `getQueryHints()`.
+- Un desplazamiento de página que desborda `int` lanza `ArithmeticException` en vez de dar la vuelta
+  (`JpaResult`, `MongoQueryHelpers`).
+- El error `Unknown property` de `JpaUtils` dice `Unknown property: <nombre> in entity <clase>`.
+- Build: las versiones de Spring Boot, jspecify y Testcontainers son propiedades del `pom.xml` padre.
+  Actualizados Spring Boot 4.2.0, Apache POI 6.0.0, `excel-streaming-reader` 6.0.0, JUnit 6.1.3,
+  Testcontainers 2.0.5, driver de MongoDB 5.15.0, driver de PostgreSQL 42.7.15, Hibernate
+  7.4.17.Final (tests) y `omni-search` 2.6.0.
+
+### Eliminado
+
+- `EntityCrudProvider.applyQueryPolicies(String)` y
+  `OwnedEntityCrudProvider.applyQueryPolicies(OWNER_ID, String)` — la consulta ahora llega tal cual a
+  `internalPage`/`internalList`/`internalStream`/`internalCount`. Para acotar toda consulta, usa
+  `predicateFilter`/`filterFilter` de los providers `Filterable*`.
+- `JpaQuery.addHints(Map)` y `JpaResult.addHints(Map)` — usa `JpaQueryHints` y `JpaResultHints`.
+- `JpaUtils.requireTransaction(EntityManager, …)`, `requireTransaction(EntityTransaction, …)` y
+  `requireTransactionStream(…)` — usa `JpaTransactionRunners.installed()`.
+
+### Migración
+
+- Reemplaza `query.addHints(hints)` por `new JpaQueryHints<>(query, hints)`, y `result.addHints(hints)`
+  por `new JpaResultHints<>(result, hints)`.
+- Reemplaza `JpaTransactionRunners.current()` por `JpaTransactionRunners.installed()`, y toda llamada
+  directa a `JpaUtils.requireTransaction*` por `JpaTransactionRunners.installed().run(...)`/
+  `runStream(...)`.
+- Una clase que extienda `FilterableJpaCrudProvider` o `FilterableOwnedJpaCrudProvider` debe
+  implementar `predicateFilter()`; una que extienda `FilterableMongoCrudProvider` o
+  `FilterableOwnedMongoCrudProvider` debe implementar `filterFilter(Bson)`. Si no tiene nada que
+  filtrar, que extienda `JpaCrudProvider` o `MongoCrudProvider`.
+- Una clase que extienda `EntityCrudProvider` u `OwnedEntityCrudProvider` directamente debe
+  implementar `internalStream`; si el almacén no puede leer de forma perezosa, que devuelva
+  `internalList(...).stream()`.
+- Elimina cualquier override de `applyQueryPolicies`: traslada lo que hacía a la consulta que llega a
+  `internal*`, o al filtro de un provider `Filterable*`.
+
+---
+
+## [4.3.0] — 2026-09-30
+
+Cierra un hueco de transacción en las rutas de streaming añadidas en 4.2.0: una operación de
+`JpaCrudProvider` invocada desde un callback diferido que corre en un hilo distinto del que lo produjo
+(sobre todo el escritor de un export en streaming) podía topar con que el `EntityManager` compartido
+de Spring rechaza `getTransaction()` de plano, ya que Spring reserva esa llamada para `@Transactional`.
+También añade deduplicación de filas a `ListQuery`/`EntityListQuery`, para un filtro que une una
+relación a muchos.
+
+### Añadido
+
+#### `freddy-cruder-jpa`
+
+- `JpaTransactionRunner` — cómo un `JpaCrudProvider` ejecuta una operación que necesita una
+  transacción alrededor de un `EntityManager`. `JpaTransactionRunners` guarda la única instancia que
+  usan todos los providers de la JVM — instala otra con `JpaTransactionRunners.install(...)` en vez de
+  pasarla por el constructor de cada provider. Por defecto es `JpaTransactionRunner.resourceLocal()`,
+  el mismo comportamiento de antes (delega en `JpaUtils.requireTransaction`/`requireTransactionStream`).
+- `ListQuery`/`EntityListQuery` ganaron una bandera `distinct`: un parámetro de constructor
+  `boolean distinct`, y un método `distinct()`/`distinct(boolean)` que devuelve una copia de la consulta
+  con ella activada — componible con cualquier constructor existente. Hace falta cuando un filtro o
+  una fuente une una relación a muchos, que de otro modo repite una fila por cada coincidencia del lado
+  unido; Hibernate 6 ya no deduplica eso de forma implícita.
+- `JpaCrudProvider`, `FilterableJpaCrudProvider`, `FilterableOwnedJpaCrudProvider`,
+  `JpaProjectedCrudProvider` y `JpaOwnedProjectedCrudProvider` ahora pasan por
+  `JpaTransactionRunners.current()` en vez de llamar directamente a `JpaUtils.requireTransaction`/
+  `requireTransactionStream`.
+
+#### `freddy-cruder-spring-data-jpa`
+
+- `SpringJpaTransactionRunner` — un `JpaTransactionRunner` respaldado por un
+  `PlatformTransactionManager` de Spring: respeta un `EntityManager` ya unido a una transacción, o abre
+  una nueva gestionada por Spring en el hilo que llama si no.
+- La autoconfiguración lo instala cuando el contexto de la aplicación está listo — nada que configurar.
+
+### Corregido
+
+- El `stream()` de un `JpaCrudProvider` — y, a través de él, un export en streaming — invocado desde un
+  callback que corre en un hilo sin transacción de Spring activa (el caso de la escritura diferida de
+  `StreamingResponseBody`) lanzaba `IllegalStateException: Not allowed to create transaction on shared
+  EntityManager`. Se resuelve solo en cuanto `freddy-cruder-spring-data-jpa` está en el classpath.
+
+### Migración
+
+Nada que migrar — ambos cambios son aditivos y retrocompatibles. `distinct` es `false` por defecto en
+todo lo que antes no lo pedía explícitamente.
+
+---
+
 ## [4.2.0] — 2026-09-29
 
 Suma dos funcionalidades independientes y aditivas: una lectura sin paginar basada en `Stream`, para
